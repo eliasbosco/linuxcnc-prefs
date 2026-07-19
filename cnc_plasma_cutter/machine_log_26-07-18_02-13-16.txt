@@ -1,0 +1,56 @@
+--- QtVCP Screen Started on: Sat, Jul 18 2026 01:56:19 AM ---
+--- cnc_plasma_cutter - QtPlasmaC v2.9-238.315, powered by QtVCP and LinuxCNC ---
+Sat18 01:56: Tool 0: No Tool
+Sat18 01:56: Emergency stop cleared
+Sat18 01:56: GUI power on
+Sat18 01:56: Machine homed
+Sat18 01:56: Tool 0: torch
+Sat18 01:56: Unexpected realtime delay on task 0 with period 1000000
+This Message will only display once per session.
+Run the Latency Test and resolve before continuing.
+Sat18 01:57: Set Origin of Axis X to 50000.000000
+Sat18 01:57: Zeroed Axis X
+Sat18 01:58: Loaded: /home/pi/linuxcnc/nc_files/examples/flowsnake.ngc
+Sat18 01:58: GUI power off
+Sat18 01:58: GUI power on
+Sat18 01:58: Machine homed
+Sat18 01:58: Cycle started - Torch disabled
+Sat18 01:59: Cycle paused
+Sat18 01:59: bottom limit reached while probing down.
+program is paused.
+Sat18 01:59: Cycle resumed
+Sat18 02:00: Cycle aborted
+Sat18 02:00: Machine idle
+Sat18 02:00: GUI power off
+Sat18 02:00: joint 2 following error
+Sat18 02:00: GUI power on
+Sat18 02:00: Machine homed
+Sat18 02:00: Cycle started - Torch disabled
+Sat18 02:01: Cycle paused
+Sat18 02:01: bottom limit reached while probing down.
+program is paused.
+Sat18 02:01: Cycle aborted
+Sat18 02:01: Machine idle
+Sat18 02:02: Program cleared
+Sat18 02:02: Loaded: /home/pi/linuxcnc/nc_files/examples/arcspiral.ngc
+Sat18 02:02: Program cleared
+Sat18 02:04: Loaded: /home/pi/linuxcnc/nc_files/examples/polar.ngc
+Sat18 02:04: Cycle started - Torch disabled
+Sat18 02:04: Machine idle
+Sat18 02:05: Program cleared
+Sat18 02:05: Loaded: /home/pi/linuxcnc/nc_files/examples/plasmatest.ngc
+Sat18 02:07: Machine homed
+Sat18 02:07: Cycle started - Torch disabled
+Sat18 02:07: Tool 1: scribe
+Sat18 02:09: Cycle paused
+Sat18 02:09: bottom limit reached while probing down.
+program is paused.
+Sat18 02:10: Cycle resumed
+Sat18 02:10: Cycle paused
+Sat18 02:11: Cycle resumed
+Sat18 02:11: Cycle resumed
+Sat18 02:12: Cycle resumed
+Sat18 02:12: Cycle resumed
+Sat18 02:12: Cycle resumed
+Sat18 02:12: Cycle aborted
+Sat18 02:12: Machine idle
