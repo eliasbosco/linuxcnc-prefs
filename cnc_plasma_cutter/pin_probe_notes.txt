@@ -13,3 +13,11 @@
 
 ===== probe run =====
 gpio.030  P1-10    plasma-torch-on spindle.0.on
+
+===== probe run =====
+
+===== probe run =====
+
+===== probe run =====
+
+===== probe run =====

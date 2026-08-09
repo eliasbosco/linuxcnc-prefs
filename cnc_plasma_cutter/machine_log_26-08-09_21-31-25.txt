@@ -1,0 +1,12 @@
+--- QtVCP Screen Started on: Sun, Aug 09 2026 09:17:54 PM ---
+--- cnc_plasma_cutter - QtPlasmaC v2.9-238.315, powered by QtVCP and LinuxCNC ---
+Sun09 21:17: Tool 0: No Tool
+Sun09 21:18: Emergency stop cleared
+Sun09 21:18: GUI power on
+Sun09 21:29: Reloaded: /home/pi/linuxcnc/nc_files/examples/plasmac/metric_circles.ngc
+Sun09 21:29: float switch activated
+program is paused.
+Sun09 21:29: Machine homed
+Sun09 21:31: Unexpected realtime delay on task 0 with period 1000000
+This Message will only display once per session.
+Run the Latency Test and resolve before continuing.

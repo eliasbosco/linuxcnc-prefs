@@ -31,9 +31,21 @@ Pin header 8-way
 --------------------------------------
 1: 5V
 2: GND
-3: gpio.014  P2-11   8-way "14" IN
-4: gpio.015  P2-12   8-way "15" IN
+3: gpio.014  P2-11   8-way "14" IN - Arc initiation success (arc-ok)
+4: gpio.015  P2-12   8-way "15" IN - Float switch
 5: gpio.016  P2-13   8-way "16" IN
 6: gpio.017  P1-01   8-way "17" IN
 7: gpio.018  P1-14   8-way "18" IN
 8: gpio.019  P1-02   8-way "19" IN
+
+Pin header 2x4 way (outputs)
+Row 1
+1: 5V
+2: GND
+3: gpio.030 - Start control signal (torch-on)
+4:
+Row 2
+1: 
+2:
+3: gpio.031
+4:

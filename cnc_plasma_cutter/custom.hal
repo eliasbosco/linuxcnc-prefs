@@ -93,13 +93,12 @@ net  plasmac:arc-ok-in  <=  hm2_7i92.0.gpio.014.in_not
 # ======================================================================
 
 # ======================================================================
-# TEMPORARY BENCH-TEST FLOAT-SWITCH SIMULATION
-# No torch / material / probe input is wired yet. This makes QtPlasmaC's
-# touch-off probe succeed at a VIRTUAL material top of Z = -40 mm so the
-# X/Y/Z cut motion can be verified in the air. (-40 leaves >25 mm of room
-# above the material so QtPlasmaC's 25 mm "Safe Height" fits without the
-# "safe traverse height reduced" warning. Raise the GUI Probe Feed Rate
-# to keep the 40 mm probe descent quick.)
+# TEMPORARY BENCH-TEST FLOAT-SWITCH SIMULATION  *** ACTIVE ***
+# This makes QtPlasmaC's touch-off probe succeed at a VIRTUAL material top
+# of Z = -40 mm so the X/Y/Z cut motion can be verified in the air. (-40
+# leaves >25 mm of room above the material so QtPlasmaC's 25 mm "Safe
+# Height" fits without the "safe traverse height reduced" warning. Raise
+# the GUI Probe Feed Rate to keep the 40 mm probe descent quick.)
 #
 # The float switch reads "not tripped" at Z=0 and trips once Z descends
 # below -40 mm (comp.out is true when in1 > in0, i.e. -40 > Z).
@@ -108,13 +107,51 @@ net  plasmac:arc-ok-in  <=  hm2_7i92.0.gpio.014.in_not
 #   * DISABLE the Torch (Torch Enable off) - QtPlasmaC then auto-simulates
 #     arc-OK and runs all motion without firing. (Optionally disable THC too.)
 #
-# >>> DELETE THIS BLOCK before connecting a real torch / cutting <<<
+# >>> DELETE THIS BLOCK and re-enable the REAL FLOAT SWITCH section below
+# >>> before connecting a real torch / cutting. Only ONE of the two may be
+# >>> active: both write plasmac:float-switch, and two writers on one signal
+# >>> is a "signal already has writer" HAL error at startup.
 loadrt comp count=1
 addf   comp.0  servo-thread
 setp   comp.0.in1   -40.0      # virtual material top (mm)
 setp   comp.0.hyst    1.0
 net    plasmac:axis-position  =>  comp.0.in0   # live machine Z position
-net    plasmac:float-switch   <=  comp.0.out   # drive the unconnected float switch
+net    plasmac:float-switch   <=  comp.0.out   # drive the simulated float switch
+# ======================================================================
+
+# ======================================================================
+# REAL FLOAT SWITCH INPUT  (torch breakaway/float probe -> Mesa)
+# *** DISABLED while the simulation above is active - uncomment the two
+# *** setp/net lines at the end of this block and delete the sim to use it.
+#
+#   float-switch <- GPIO15 = P2-12 = the terminal silked "15" on the 8-way
+#                   block (5V G 14 15 16 17 18 19), i.e. the pin next to the
+#                   arc-ok input on 14. See mesa_F7I92_pinout.txt.
+#
+# Wiring: one side of the switch to a G terminal on the same 8-way block,
+# the other side to terminal 15. The board pulls the pin up, so an open
+# switch reads HIGH and a closed switch reads LOW.
+#
+# POLARITY: NOT inverted, so plasmac:float-switch is TRUE when the pin is
+# HIGH. That expects a NORMALLY-CLOSED switch: held closed (pin LOW, "not
+# tripped") while the torch hangs at rest, opening (pin HIGH, "tripped")
+# when the torch head is pushed up on contact with the material.
+#
+# This is the fail-safe polarity: a broken wire, a disconnected plug or a
+# lost ground leaves the pin pulled HIGH, i.e. float-switch TRUE, so the
+# probe reads "already touched" and stops immediately instead of driving
+# the torch down into the material until the Z limit.
+#
+# If the torch uses a NORMALLY-OPEN float switch instead, change .in to
+# .in_not below - but note that then a broken wire reads as "not tripped"
+# and the probe WILL drive down into the plate, so prefer NC wiring.
+#
+# VERIFY BEFORE PROBING: with the machine on, watch ./gpio_watch.sh (or the
+# QtPlasmaC Float LED) and push the torch head up by hand. The LED must be
+# OFF at rest and ON while lifted. Debounce delay is db_float.delay = 5 at
+# the top of this file (each increment adds 0.001 mm to the probed height).
+#setp hm2_7i92.0.gpio.015.is_output  0
+#net  plasmac:float-switch  <=  hm2_7i92.0.gpio.015.in
 # ======================================================================
 
 
