@@ -1,0 +1,39 @@
+Hitbox HBC65 Plasma Cutter
+Control signal
+1: Start control signal input + (brown)
+2: Start control signal input - (white)
+3: Arc initiation success signal output + (green )
+4: Arc initiation success signal output - (yellow)
+
+Arc voltage output - 1:1 ratio:
+1: positive (purple)
+2: negative (black)
+
+DB15
+---------------------------------------
+1:  gpio.022  P1-16   4-way "22" IN
+2:  gpio.020  P1-15   -          IN
+3:  gpio.026  P1-06   -          enc.0B
+4:  gpio.027  P1-07   -          enc.0A
+5:  gpio.028  P1-08   -          IN
+6:  gpio.023  P1-04   -          IN
+7:  gpio.021  P1-03   -          IN
+8:  
+9:
+10: gpio.029  P1-09   4-way "29" IN
+11: gpio.025  P1-05   -          IN
+12: gpio.024  P1-17   4-way "24" IN
+13: 
+14:
+15: 
+
+Pin header 8-way
+--------------------------------------
+1: 5V
+2: GND
+3: gpio.014  P2-11   8-way "14" IN
+4: gpio.015  P2-12   8-way "15" IN
+5: gpio.016  P2-13   8-way "16" IN
+6: gpio.017  P1-01   8-way "17" IN
+7: gpio.018  P1-14   8-way "18" IN
+8: gpio.019  P1-02   8-way "19" IN

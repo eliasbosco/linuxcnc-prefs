@@ -1,6 +1,0 @@
---- QtVCP Screen Started on: Sat, Jul 18 2026 01:53:34 AM ---
---- cnc_plasma_cutter - QtPlasmaC v2.9-238.315, powered by QtVCP and LinuxCNC ---
-Sat18 01:53: Tool 0: No Tool
-Sat18 01:53: Unexpected realtime delay on task 0 with period 1000000
-This Message will only display once per session.
-Run the Latency Test and resolve before continuing.

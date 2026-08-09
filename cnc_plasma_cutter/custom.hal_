@@ -1,0 +1,70 @@
+# Include your custom HAL commands here
+# This file will not be overwritten when you run PNCconf again
+
+# ---COMMON PLASMAC DEBOUNCE---
+# for the float and ohmic inputs each increment in delay is
+# is a 0.001mm (0.00004") increase in any probed height result
+setp db_float.delay     5
+setp db_ohmic.delay     5
+setp db_breakaway.delay 5
+setp db_arc-ok.delay    5
+
+# ======================================================================
+# TEMPORARY BENCH-TEST FLOAT-SWITCH SIMULATION
+# No torch / material / probe input is wired yet. This makes QtPlasmaC's
+# touch-off probe succeed at a VIRTUAL material top of Z = -40 mm so the
+# X/Y/Z cut motion can be verified in the air. (-40 leaves >25 mm of room
+# above the material so QtPlasmaC's 25 mm "Safe Height" fits without the
+# "safe traverse height reduced" warning. Raise the GUI Probe Feed Rate
+# to keep the 40 mm probe descent quick.)
+#
+# The float switch reads "not tripped" at Z=0 and trips once Z descends
+# below -40 mm (comp.out is true when in1 > in0, i.e. -40 > Z).
+#
+# For a FULL dry run also set this in the QtPlasmaC GUI:
+#   * DISABLE the Torch (Torch Enable off) - QtPlasmaC then auto-simulates
+#     arc-OK and runs all motion without firing. (Optionally disable THC too.)
+#
+# >>> DELETE THIS BLOCK before connecting a real torch / cutting <<<
+loadrt comp count=1
+addf   comp.0  servo-thread
+setp   comp.0.in1   -40.0      # virtual material top (mm)
+setp   comp.0.hyst    1.0
+net    plasmac:axis-position  =>  comp.0.in0   # live machine Z position
+net    plasmac:float-switch   <=  comp.0.out   # drive the unconnected float switch
+# ======================================================================
+
+
+
+########################################
+# The following variables are available for fine tuning some parameters.
+# To use any of these, uncomment the required setp line and set an appropriate value.
+
+# Dampen excessive noise on the arc voltage input
+# default = 0 (volts)
+#setp plasmac.lowpass-frequency 0
+
+# The time delay from losing the arc ok signal until QtPlasmaC reacts to the arc loss.
+# default = 0.0 (seconds)
+#setp plasmac.arc-lost-delay 0.0
+
+# For mode 0 Arc-OK only, the number of consecutive readings within the threshold that are required to set the Arc-OK signal.
+# default = 6
+#setp plasmac.arc-ok-counts 6
+
+# For mode 0 Arc-OK only, the maximum voltage deviation that is allowed for a valid voltage to set the Arc OK signal.
+# default = 10 (volts)
+#setp plasmac.arc-ok-threshold 10
+
+# The voltage above and below 0V that will display as 0V. Prevents small fluctuations from flickering the voltage display.
+# default = 0 (volts)
+#setp plasmac.zero-window 0
+
+# The distance (in millimeters) away from the Z MAX_LIMIT that QtPlasmaC will allow the Z axis to travel while under machine control.
+# default = 5 (mm)
+#setp plasmac.max-offset 5
+
+# The required number of consecutive times that the threshold has been exceeded before applying the void lock to the THC.
+# default = 2
+#setp plasmac.kerf-error-max 2
+

@@ -9,6 +9,114 @@ setp db_ohmic.delay     5
 setp db_breakaway.delay 5
 setp db_arc-ok.delay    5
 
+# ======================================================================
+# THCAD2 ARC VOLTAGE READOUT  (Mesa 7i92 QCount0)
+# Confirmed pinout (mesaflash --readhmid):
+#   QCount0 Quad-A = GPIO27 = P1 pin 7   <-- THCAD2 P1.4 FOUT+ wires here
+#   QCount0 Quad-B = GPIO26 = P1 pin 6   <-- unused (leave open)
+#   THCAD2 P1.5 FOUT- -> a 7i92 GND pin
+#   THCAD2 P1.6 +5V / P1.1 GND -> clean 5V supply
+#   THCAD2 W1 = UP (10V full-scale), 3 x 1M = 3.0M series R on P2.1 IN-
+#   VFS = (REXT * 100uA) + 10V = (3.0M * 100uA) + 10 = 310V full scale
+#
+# counter-mode 1 = up/down (single-input frequency count) as the THCAD2
+# manual requires. scale 1 makes .velocity read directly in Hz; the volts
+# conversion is done by QtPlasmaC's THCAD calibration fields, NOT here:
+#   Fzero (0V)   = 100000    (design-centre; use sticker for <1% accuracy)
+#   Ffull (FS)   = 900000
+#   Fmax voltage = 310       (10V mode, 3 x 1M = 3.0M series on IN-)
+#   NOTE: 1M parts are often +-5%, so real total may be ~2.85-3.15M
+#   (VFS ~295-325V). Meter the string and recompute, or trim Fmax
+#   empirically against a DVM across the arc for a tight reading.
+setp hm2_7i92.0.encoder.00.counter-mode 1
+setp hm2_7i92.0.encoder.00.scale        1
+net  plasmac:arc-voltage-in  <=  hm2_7i92.0.encoder.00.velocity
+# ======================================================================
+
+# ======================================================================
+# TORCH START OUTPUT  (Mesa 7i92 -> relay/opto -> HBC65 control pins 1,2)
+# HBC65 start input expects a DRY CONTACT closure. Do NOT drive it from the
+# 3.3V FPGA pin directly - use a relay or opto between GPIO30 and HBC65 1,2.
+#   torch-on -> GPIO30 = P1-10  (was GPIO22 = P1-16, the terminal silked "22"
+#   on the 4-way block by the LinuxCNC logo: 22 24 29 G)
+# gpio.030 has secondary function "None" in the card IDROM, so it stays a
+# plain GPIO regardless of the num_pwmgens/num_stepgens/num_encoders config
+# (the PWM lives on gpio.001 = P2-14, the THCAD encoder on gpio.026/027).
+#
+# NOTE the signal is plasmac:torch-on, the plasmac component OUTPUT - NOT
+# spindle.0.on. spindle.0.on is plasmac's INPUT (plasmac:cutting-start, the
+# raw M3); driving the relay from it would fire the torch the moment M3 is
+# issued and hold it on regardless of Torch Enable, pierce delay, arc-ok,
+# arc loss, cut recovery or M62 P3 torch-off. See qtplasmac_comp.hal.
+#
+# NOTE this board is an F7192_V2.2 clone, NOT a genuine 7i92. The silk numbers
+# ARE the hostmot2 GPIO indices. The only numbered terminals it breaks out are
+# 14-19 (8-way block, with G and 5V) and 22/24/29 (4-way block); GPIO28 (P1-08)
+# is a real pin but has no screw terminal, which is why gpio.028 did nothing.
+# GPIO30 is likewise on P1 with no silked terminal - take it off the P1 header
+# / D-sub, not the screw blocks.
+# Connector map is per "mesaflash --device 7i92 --addr 10.10.10.10 --readhmid":
+# GPIO 000-016 = P2 (DB25 order 1,14,2,15,3,16,4,17,5..13), GPIO 017-033 = P1.
+# Use ./pin_probe.sh to walk the free pins and find them with a meter.
+setp hm2_7i92.0.gpio.030.is_output  1
+net  plasmac:torch-on  =>  hm2_7i92.0.gpio.030.out
+# ======================================================================
+
+# ======================================================================
+# HARDWARE ARC-OK INPUT  (HBC65 control pins 3,4 -> PC817 -> Mesa)
+#   arc-ok <- GPIO14 = P2-11 = the terminal silked "14" on the 8-way block
+#             (the one with G and 5V, silked: 5V G 14 15 16 17 18 19)
+#
+# INVERTED (.in_not) because this input is ACTIVE LOW - confirmed on the
+# bench with ./gpio_watch.sh: gpio.014 idles at a steady HIGH on the board's
+# pull-up, and the PC817's phototransistor pulls it DOWN to ground when the
+# arc-established contact closes, so the row flips [ HIGH ] -> [  low ].
+# .in_not therefore reads FALSE with no arc and TRUE with an arc.
+#
+# This is also the fail-safe polarity: a broken wire or a dead / unpowered
+# opto leaves the pin pulled HIGH, i.e. arc-ok FALSE, so a failure reads as
+# "no arc" and the machine stops rather than cutting on a phantom arc.
+#
+# NOTE the signal must be plasmac:arc-ok-in (the debounce INPUT). Do NOT use
+# plasmac:arc-ok - that is the debounce OUTPUT and is already driven, so it
+# would cause a "signal already has writer" HAL error / bypass the debounce.
+# Debounce delay is set at the top of this file (db_arc-ok.delay = 5).
+#
+# This pin is read in Mode 1 and Mode 2 only - Mode 0 derives Arc-OK from
+# the arc-voltage threshold alone and ignores it. cnc_plasma_cutter.prefs is
+# now set to "Mode = 1" under [GUI_OPTIONS], so this wiring is live.
+# NOTE Mode has NO GUI control: qtplasmac_handler.py reads it once at
+# startup (getpref 'Mode', GUI_OPTIONS) and never writes it back, so it can
+# only be changed by editing the prefs file with QtPlasmaC CLOSED.
+setp hm2_7i92.0.gpio.014.is_output  0
+net  plasmac:arc-ok-in  <=  hm2_7i92.0.gpio.014.in_not
+# ======================================================================
+
+# ======================================================================
+# TEMPORARY BENCH-TEST FLOAT-SWITCH SIMULATION
+# No torch / material / probe input is wired yet. This makes QtPlasmaC's
+# touch-off probe succeed at a VIRTUAL material top of Z = -40 mm so the
+# X/Y/Z cut motion can be verified in the air. (-40 leaves >25 mm of room
+# above the material so QtPlasmaC's 25 mm "Safe Height" fits without the
+# "safe traverse height reduced" warning. Raise the GUI Probe Feed Rate
+# to keep the 40 mm probe descent quick.)
+#
+# The float switch reads "not tripped" at Z=0 and trips once Z descends
+# below -40 mm (comp.out is true when in1 > in0, i.e. -40 > Z).
+#
+# For a FULL dry run also set this in the QtPlasmaC GUI:
+#   * DISABLE the Torch (Torch Enable off) - QtPlasmaC then auto-simulates
+#     arc-OK and runs all motion without firing. (Optionally disable THC too.)
+#
+# >>> DELETE THIS BLOCK before connecting a real torch / cutting <<<
+loadrt comp count=1
+addf   comp.0  servo-thread
+setp   comp.0.in1   -40.0      # virtual material top (mm)
+setp   comp.0.hyst    1.0
+net    plasmac:axis-position  =>  comp.0.in0   # live machine Z position
+net    plasmac:float-switch   <=  comp.0.out   # drive the unconnected float switch
+# ======================================================================
+
 
 
 ########################################
@@ -42,4 +150,3 @@ setp db_arc-ok.delay    5
 # The required number of consecutive times that the threshold has been exceeded before applying the void lock to the THC.
 # default = 2
 #setp plasmac.kerf-error-max 2
-

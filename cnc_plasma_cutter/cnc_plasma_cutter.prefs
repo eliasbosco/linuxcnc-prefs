@@ -1,6 +1,6 @@
 [PLASMA_PARAMETERS]
-Arc Voltage Offset = 0.000
-Arc Voltage Scale = 1.000000
+Arc Voltage Offset = -38.750000
+Arc Voltage Scale = 0.000387500
 Setup Feed Rate = 16000.0
 Arc Fail Timeout = 3.0
 Arc OK High = 250.0
@@ -30,7 +30,7 @@ THC Sample Threshold = 1.0
 THC Threshold = 1.0
 
 [GUI_OPTIONS]
-Mode = 0
+Mode = 1
 Estop type = 2
 DRO position = bottom
 Flash error = 0
@@ -39,7 +39,7 @@ Hide pause = 0
 Hide abort = 0
 Autorepeat all = False
 Use keyboard shortcuts = False
-Use soft keyboard = False
+Use soft keyboard = True
 Show materials = True
 Run from line = True
 Tool tips = True
@@ -109,9 +109,9 @@ Disabled = #b0b0b0
 Preview = #000000
 
 [ENABLE_OPTIONS]
-THC enable = False
+THC enable = True
 Corner lock enable = True
-Void lock enable = False
+Void lock enable = True
 Use auto volts = True
 Ohmic probe enable = False
 THC auto = False
@@ -122,14 +122,14 @@ X axis = 0.0
 Y axis = 0.0
 
 [STATISTICS]
-Cut time = 0.0
-Paused time = 0.0
-Probe time = 0.0
-Program run time = 0.0
-Torch on time = 0.0
-Rapid time = 0.0
-Cut length = 0.0
-Pierce count = 0
+Cut time = 40.21
+Paused time = 2139.68
+Probe time = 187.79
+Program run time = 2522.65
+Torch on time = 66.05
+Rapid time = 102.37
+Cut length = 1884.96
+Pierce count = 12
 
 [LASER_OFFSET]
 X axis = 0.0

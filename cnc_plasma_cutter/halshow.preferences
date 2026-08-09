@@ -1,0 +1,16 @@
+# Halshow settings
+# This file is generated automatically.
+wm geometry . 700x475+336+174
+placeFrames 0.3313953488372093
+set ::ratio 0.3313953488372093
+set ::old_w_leftf 203
+set ::watchlist {
+    pin+plasmac.torch-pulse-start
+}
+set ::workmode showhal
+set ::watchInterval 100
+set ::col1_width 100
+set ::ffmts 
+set ::ifmts 
+set ::alwaysOnTop 0
+set ::autoSaveWatchlist 1

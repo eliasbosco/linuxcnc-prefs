@@ -1,0 +1,27 @@
+--- QtVCP Screen Started on: Sun, Aug 09 2026 04:32:14 PM ---
+--- cnc_plasma_cutter - QtPlasmaC v2.9-238.315, powered by QtVCP and LinuxCNC ---
+Sun09 16:32: Tool 0: No Tool
+Sun09 16:32: Unexpected realtime delay on task 0 with period 1000000
+This Message will only display once per session.
+Run the Latency Test and resolve before continuing.
+Sun09 16:32: Emergency stop cleared
+Sun09 16:32: GUI power on
+Sun09 16:32: Reloaded: /home/pi/linuxcnc/nc_files/examples/plasmac/metric_circles.ngc
+Sun09 16:32: Machine homed
+Sun09 16:32: Tool 0: torch
+Sun09 16:32: Cycle started - Torch disabled
+Sun09 16:33: valid arc lost
+program is paused.
+Sun09 16:33: Cycle paused
+Sun09 16:33: Cycle resumed
+Sun09 16:34: Cycle paused
+Sun09 16:34: valid arc lost
+program is paused.
+Sun09 16:34: Cycle resumed
+Sun09 16:35: Cycle paused
+Sun09 16:35: valid arc lost
+program is paused.
+Sun09 16:44: Cycle resumed
+Sun09 16:44: Cycle paused
+Sun09 16:44: no arc detected after 3 start attempts
+program is paused.

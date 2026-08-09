@@ -65,20 +65,17 @@ SHUTDOWN = shutdown.hal
 
 [KINS]
 JOINTS = 4
-# Gantry: A motor (JOINT_3) slaved to Y (JOINT_1). Both map to the Y coordinate.
-#  X: JOINT_0   Y: JOINT_1 + JOINT_3   Z: JOINT_2
-# kinstype=BOTH selects non-identity kinematics for the duplicated Y joint.
-KINEMATICS = trivkins coordinates=XYZY kinstype=BOTH
+KINEMATICS = trivkins coordinates=XYZA
 
 [TRAJ]
 SPINDLES = 3
-COORDINATES =  XYZY
+COORDINATES =  XYZA
 MAX_ANGULAR_VELOCITY = 333.33
 DEFAULT_ANGULAR_VELOCITY = 33.33
 LINEAR_UNITS = mm
 ANGULAR_UNITS = degree
-DEFAULT_LINEAR_VELOCITY = 50.0
-MAX_LINEAR_VELOCITY = 100.0
+DEFAULT_LINEAR_VELOCITY = 33.33
+MAX_LINEAR_VELOCITY = 333.33
 
 [EMCIO]
 EMCIO = io
@@ -88,23 +85,23 @@ TOOL_TABLE = tool.tbl
 #******************************************
 [AXIS_X]
 # MAX_VEL & MAX_ACC need to be twice the corresponding joint value
-MAX_VELOCITY = 100.0
-MAX_ACCELERATION = 1000.0
+MAX_VELOCITY = 666.6666666666666
+MAX_ACCELERATION = 2400.0
 OFFSET_AV_RATIO = 0.5
-MIN_LIMIT = 0.0
-MAX_LIMIT = 1230.0
+MIN_LIMIT = -9999.0
+MAX_LIMIT = 9999.0
 
 [JOINT_0]
 TYPE = LINEAR
 HOME = 0.0
 FERROR = 10.0
 MIN_FERROR = 1.0
-MAX_VELOCITY = 50.0
-MAX_ACCELERATION = 500.0
+MAX_VELOCITY = 333.3333333333333
+MAX_ACCELERATION = 1200.0
 # The values below should be 25% larger than MAX_VELOCITY and MAX_ACCELERATION
 # If using BACKLASH compensation STEPGEN_MAXACCEL should be 100% larger.
-STEPGEN_MAXVEL = 62.5
-STEPGEN_MAXACCEL = 625.0
+STEPGEN_MAXVEL = 416.67
+STEPGEN_MAXACCEL = 1500.00
 P = 1000.0
 I = 0.0
 D = 0.0
@@ -119,9 +116,9 @@ DIRSETUP   = 10000
 DIRHOLD    = 10000
 STEPLEN    = 5000
 STEPSPACE  = 5000
-STEP_SCALE = 250.0
-MIN_LIMIT = 0.0
-MAX_LIMIT = 1230.0
+STEP_SCALE = 1.0
+MIN_LIMIT = -9999.0
+MAX_LIMIT = 9999.0
 HOME_OFFSET = 0.0
 HOME_SEQUENCE = 2
 #******************************************
@@ -129,23 +126,23 @@ HOME_SEQUENCE = 2
 #******************************************
 [AXIS_Y]
 # MAX_VEL & MAX_ACC need to be twice the corresponding joint value
-MAX_VELOCITY = 100.0
-MAX_ACCELERATION = 1000.0
+MAX_VELOCITY = 666.6666666666666
+MAX_ACCELERATION = 2400.0
 OFFSET_AV_RATIO = 0.5
-MIN_LIMIT = 0.0
-MAX_LIMIT = 1310.0
+MIN_LIMIT = -9999.0
+MAX_LIMIT = 9999.0
 
 [JOINT_1]
 TYPE = LINEAR
 HOME = 0.0
 FERROR = 10.0
 MIN_FERROR = 1.0
-MAX_VELOCITY = 50.0
-MAX_ACCELERATION = 500.0
+MAX_VELOCITY = 333.3333333333333
+MAX_ACCELERATION = 1200.0
 # The values below should be 25% larger than MAX_VELOCITY and MAX_ACCELERATION
 # If using BACKLASH compensation STEPGEN_MAXACCEL should be 100% larger.
-STEPGEN_MAXVEL = 62.5
-STEPGEN_MAXACCEL = 625.0
+STEPGEN_MAXVEL = 416.67
+STEPGEN_MAXACCEL = 1500.00
 P = 1000.0
 I = 0.0
 D = 0.0
@@ -160,34 +157,33 @@ DIRSETUP   = 10000
 DIRHOLD    = 10000
 STEPLEN    = 5000
 STEPSPACE  = 5000
-STEP_SCALE = 250.0
-MIN_LIMIT = 0.0
-MAX_LIMIT = 1310.0
+STEP_SCALE = 1.0
+MIN_LIMIT = -9999.0
+MAX_LIMIT = 9999.0
 HOME_OFFSET = 0.0
-# Negative sequence = home together with the other Y joint (JOINT_3) as a gantry
-HOME_SEQUENCE = -3
+HOME_SEQUENCE = 3
 #******************************************
 
 #******************************************
 [AXIS_Z]
 # MAX_VEL & MAX_ACC need to be twice the corresponding joint value
-MAX_VELOCITY = 160.0
-MAX_ACCELERATION = 1600.0
+MAX_VELOCITY = 666.6666666666666
+MAX_ACCELERATION = 2400.0
 OFFSET_AV_RATIO = 0.5
-MIN_LIMIT = -150.0
-MAX_LIMIT = 0.0
+MIN_LIMIT = -9999.0
+MAX_LIMIT = 9999.0
 
 [JOINT_2]
 TYPE = LINEAR
 HOME = 0.0
 FERROR = 10.0
 MIN_FERROR = 1.0
-MAX_VELOCITY = 80.0
-MAX_ACCELERATION = 800.0
+MAX_VELOCITY = 333.3333333333333
+MAX_ACCELERATION = 1200.0
 # The values below should be 25% larger than MAX_VELOCITY and MAX_ACCELERATION
 # If using BACKLASH compensation STEPGEN_MAXACCEL should be 100% larger.
-STEPGEN_MAXVEL = 100.0
-STEPGEN_MAXACCEL = 1000.0
+STEPGEN_MAXVEL = 416.67
+STEPGEN_MAXACCEL = 1500.00
 P = 1000.0
 I = 0.0
 D = 0.0
@@ -202,27 +198,33 @@ DIRSETUP   = 10000
 DIRHOLD    = 10000
 STEPLEN    = 5000
 STEPSPACE  = 5000
-STEP_SCALE = 250.0
-MIN_LIMIT = -150.0
-MAX_LIMIT = 0.0
+STEP_SCALE = 1.0
+MIN_LIMIT = -9999.0
+MAX_LIMIT = 9999.0
 HOME_OFFSET = 0.0
 HOME_SEQUENCE = 1
 #******************************************
 
 #******************************************
-# JOINT_3 is the second Y motor (former A axis), slaved to Y via XYZY kinematics.
-# It has no [AXIS_A] section: its axis limits/velocity come from [AXIS_Y] above.
+[AXIS_A]
+# MAX_VEL & MAX_ACC need to be twice the corresponding joint value
+MAX_VELOCITY = 666.6666666666666
+MAX_ACCELERATION = 2400.0
+OFFSET_AV_RATIO = 0.5
+MIN_LIMIT = -9999.0
+MAX_LIMIT = 0.01
+
 [JOINT_3]
-TYPE = LINEAR
+TYPE = ANGULAR
 HOME = 0.0
-FERROR = 10.0
-MIN_FERROR = 1.0
-MAX_VELOCITY = 50.0
-MAX_ACCELERATION = 500.0
+FERROR = 0.5
+MIN_FERROR = 0.05
+MAX_VELOCITY = 333.3333333333333
+MAX_ACCELERATION = 1200.0
 # The values below should be 25% larger than MAX_VELOCITY and MAX_ACCELERATION
 # If using BACKLASH compensation STEPGEN_MAXACCEL should be 100% larger.
-STEPGEN_MAXVEL = 62.5
-STEPGEN_MAXACCEL = 625.0
+STEPGEN_MAXVEL = 416.67
+STEPGEN_MAXACCEL = 1500.00
 P = 1000.0
 I = 0.0
 D = 0.0
@@ -237,12 +239,11 @@ DIRSETUP   = 10000
 DIRHOLD    = 10000
 STEPLEN    = 5000
 STEPSPACE  = 5000
-STEP_SCALE = 250.0
-MIN_LIMIT = 0.0
-MAX_LIMIT = 1310.0
+STEP_SCALE = 1.0
+MIN_LIMIT = -9999.0
+MAX_LIMIT = 0.01
 HOME_OFFSET = 0.0
-# Same negative sequence as JOINT_1 so both Y joints home together
-HOME_SEQUENCE = -3
+HOME_SEQUENCE = 4
 #******************************************
 
 [QTPLASMAC]
