@@ -14,7 +14,7 @@ DB15
 1:  gpio.022  P1-16   4-way "22" IN
 2:  gpio.020  P1-15   -          IN
 3:  gpio.026  P1-06   -          enc.0B
-4:  gpio.027  P1-07   -          enc.0A
+4:  gpio.027  P1-07   -          enc.0A - THCAD2 FREQ+ Signal
 5:  gpio.028  P1-08   -          IN
 6:  gpio.023  P1-04   -          IN
 7:  gpio.021  P1-03   -          IN

@@ -1,0 +1,19 @@
+--- QtVCP Screen Started on: Tue, Aug 11 2026 07:25:01 PM ---
+--- cnc_plasma_cutter - QtPlasmaC v2.9-238.315, powered by QtVCP and LinuxCNC ---
+Tue11 19:25: Tool 0: No Tool
+Tue11 19:26: Emergency stop cleared
+Tue11 19:26: GUI power on
+Tue11 19:26: Reloaded: /home/pi/linuxcnc/nc_files/examples/plasmac/metric_circles.ngc
+Tue11 19:26: Machine homed
+Tue11 19:26: Tool 0: torch
+Tue11 19:26: Cycle started - Torch enabled
+Tue11 19:28: Cycle paused
+Tue11 19:28: valid arc lost
+program is paused.
+Tue11 19:28: Cycle resumed
+Tue11 19:29: Machine idle
+Tue11 19:29: Machine homed
+Tue11 19:49: Cycle started - Torch enabled
+Tue11 19:50: valid arc lost
+program is paused.
+Tue11 19:50: Cycle paused

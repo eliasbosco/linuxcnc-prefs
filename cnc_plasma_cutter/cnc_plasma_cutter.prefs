@@ -39,7 +39,7 @@ Hide pause = 0
 Hide abort = 0
 Autorepeat all = False
 Use keyboard shortcuts = False
-Use soft keyboard = True
+Use soft keyboard = False
 Show materials = True
 Run from line = True
 Tool tips = True
@@ -122,14 +122,14 @@ X axis = 0.0
 Y axis = 0.0
 
 [STATISTICS]
-Cut time = 40.21
-Paused time = 2840.72
-Probe time = 280.9
-Program run time = 3405.93
-Torch on time = 102.06
-Rapid time = 106.05
-Cut length = 1884.96
-Pierce count = 24
+Cut time = 85.78
+Paused time = 5410.57
+Probe time = 908.8
+Program run time = 7065.9
+Torch on time = 292.02
+Rapid time = 235.88
+Cut length = 3957.8
+Pierce count = 74
 
 [LASER_OFFSET]
 X axis = 0.0
