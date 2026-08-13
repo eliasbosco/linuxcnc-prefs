@@ -34,23 +34,229 @@ setp db_arc-ok.delay    5
 # Confirmed pinout (mesaflash --readhmid):
 #   QCount0 Quad-A = GPIO27 = P1 pin 7   <-- THCAD2 P1.4 FOUT+ wires here
 #   QCount0 Quad-B = GPIO26 = P1 pin 6   <-- unused (leave open)
-#   THCAD2 P1.5 FOUT- -> a 7i92 GND pin
-#   THCAD2 P1.6 +5V / P1.1 GND -> clean 5V supply
+#   THCAD2 P1.5 FOUT- -> LEAVE OPEN. Do NOT wire it to GND.
+#   THCAD2 P1.6 +5V / P1.1 GND -> clean 5V supply (4.75-5.25V, 65-150mA)
+#
+# *** FOUT- MUST FLOAT *** FOUT+/FOUT- are a DIFFERENTIAL PAIR - per the
+# THCAD2 manual p7, "one output is always just an inverted copy of the
+# other", and "if differential mode is not required, either FOUT+ or FOUT-
+# may be used as TTL level signals". FOUT- is therefore an ACTIVELY DRIVEN
+# push-pull output, NOT a signal return. This comment previously said to
+# wire it to a 7i92 GND pin; that shorts a live driver output to ground,
+# which collapses the differential stage and leaves FOUT+ sitting at a
+# dead ~0.35 V with no logic swing - the pin reads a steady [ low ] and
+# the encoder counts NOTHING, while the card looks healthy because its
+# CR2 LED is fed from the internal frequency and keeps blinking.
+# That cost hours on 2026-08-11. Only P1.1 GND bonds to Mesa ground.
+#
+# SANITY CHECK WITHOUT ANY INSTRUMENTS (manual p8): CR5 glows steadily =
+# isolated input-side 5V present. CR2 blinks at output-frequency/262144,
+# i.e. ~0.5 Hz at 0 V input and ~3.3 Hz at full scale. A blinking CR2
+# proves the V-to-F core works; it says NOTHING about the output driver
+# or the wiring to the FPGA - only climbing .rawcounts proves that.
 #   THCAD2 W1 = UP (10V full-scale), 3 x 1M = 3.0M series R on P2.1 IN-
 #   VFS = (REXT * 100uA) + 10V = (3.0M * 100uA) + 10 = 310V full scale
 #
+# *** OUTPUT DIVIDER IS SET TO F/32 *** (jumper W3 IN, W2/W4/W5 OUT - see
+# manual p4 "OUTPUT FREQUENCY"). Default from the factory is divide-by-one.
+# The counter therefore sees 1/32 of the raw V-to-F frequency, and EVERY
+# scaling number below is a /32 number. If the jumper is ever moved back to
+# divide-by-one, the scale must go back to 0.0003875 or the THC will read
+# 32x low and never make Arc OK Low.
+#
+# CRITICAL, manual p6: "the calibration data on the THCAD is recorded in the
+# divide by one mode". The sticker on the back of the card is ALWAYS raw
+# numbers - divide both of them by 32 yourself.
+#
 # counter-mode 1 = up/down (single-input frequency count) as the THCAD2
 # manual requires. scale 1 makes .velocity read directly in Hz; the volts
-# conversion is done by QtPlasmaC's THCAD calibration fields, NOT here:
-#   Fzero (0V)   = 100000    (design-centre; use sticker for <1% accuracy)
-#   Ffull (FS)   = 900000
-#   Fmax voltage = 310       (10V mode, 3 x 1M = 3.0M series on IN-)
+# conversion is done by QtPlasmaC's THCAD calibration fields, NOT here.
+# *** THE OFFSET IS A FREQUENCY IN Hz, NOT A VOLTAGE. ***
+# This block used to state that plasmac computes volts = (freq * Scale) +
+# Offset. IT DOES NOT, and that error cost most of 2026-08-13. Measured from
+# a single simultaneous `halcmd show pin plasmac` snapshot:
+#   arc-voltage-in 3128.259 Hz, scale 0.0124, offset -38.75 -> out 39.261 V
+#     (in * S) + O  =  0.040 V   err 39.221   <- the old, WRONG formula
+#     (in + O) * S  = 38.310 V   err  0.951
+#     (in - O) * S  = 39.271 V   err  0.010   <- THIS ONE
+# So:
+#       volts = (freq_Hz - Offset_Hz) * Scale
+# and the Offset is the ZERO-VOLT FREQUENCY, in Hz, subtracted BEFORE
+# scaling. It is not a voltage and it is not negative.
+#   Scale  =  VFS / (Ffull - Fzero)          [both freqs already /32]
+#   Offset =  Fzero                          [Hz, already /32]
+#
+# Design-centre worked example (100k/900k raw -> /32):
+#   Fzero (0V)   = 100000 / 32 = 3125 Hz
+#   Ffull (FS)   = 900000 / 32 = 28125 Hz
+#   span         = 25000 Hz  ->  310 V
+#   Scale  = 310 / 25000 = 0.0124
+#   Offset = 3125        (Hz)
+#   Fmax voltage = 310   (10V mode, 3 x 1M = 3.0M series on IN-)
+# INDEPENDENT CHECK that this reading of the formula is right - put the
+# measured Fzero in as the Offset and the top of the range must land on VFS:
+#   (28125 - 3128.4) * 0.0124 = 309.96 V   against a design VFS of 310.
+# Scale alone was always correct; only the Offset was wrong.
+#
+# Because Offset is a FREQUENCY it is NOT invariant under the output divider -
+# an earlier version of this note claimed it was, on the strength of it being
+# a voltage. If W3 ever moves back to divide-by-one, BOTH numbers change:
+# Offset goes to ~100000 and Scale to 0.0003875.
+#
+# *** COUNT MULTIPLIER: SOLVED 2026-08-13 by the 2 MHz sample clock. ***
+# ./thcad_zero.sh, torch off, HBC65 idle, after sample-frequency was dropped
+# to 2 MHz (see the GLITCH FILTER note below):
+#   velocity  mean -3128.1 Hz   min -3134.8   max -3118.5   (43 samples, 5 s)
+#   rawcounts -3128.3 Hz over 5.13 s   <- independent of the velocity estimator
+#   N = 1.001, spread 16 Hz (0.5%)
+# N is now 1 and STEADY, and the two independent measurements agree to 0.01%.
+# The wider glitch window fixed the multiple counting: the noisy slow edge was
+# being rejected once the filter needed 7.5 us instead of 0.5 us in each state.
+# Confirmed again at 17:00 and 17:02 the same day, 162-166 samples over 20 s,
+# N = 1.001 both times. The counting has been clean in EVERY session that was
+# actually sampled - the "39" on the ARC box was never the multiplier, it was
+# the Offset units error above. Do not re-open this unless thcad_zero.sh says
+# N is off 1.
+#
+# HISTORY - the multiple counting that this replaced. Keep it: if the ARC box
+# ever reads a clean multiple of the true voltage again, this is the cause.
+# Torch-off frequency measured on 2026-08-13, true input 0 V, three times:
+#   design-centre prediction   3125 Hz   = 1.000 x
+#   at first calibration       6270 Hz   = 2.006 x
+#   a few runs later           9485 Hz   = 3.035 x
+# Two independent readings landing within 1.2% of EXACT INTEGER multiples of
+# the design-centre Fzero is not tolerance. The card is almost certainly fine
+# and emitting its spec'd ~3125 Hz at 0 V; hostmot2 is registering a whole
+# number of counts per output cycle - 2 that day, 3 the next - so the reading
+# is N * Fzero with N wandering.
+#
+# CONSEQUENCE: a two-point fit is worthless here. It photographs whichever N
+# was live when you took the points. A fit made at N=2 (scale 0.0108855,
+# offset -68.25) put torch-off at 0 V that afternoon and at 35 V once N went
+# to 3. Reverted for exactly that reason. Fit only AFTER N is pinned at 1.
+#
+# LIKELY CAUSE: signal integrity on the single-ended FOUT+ run. A ringing or
+# slow edge gets counted more than once, and how many times depends on the
+# wiring, the routing and the noise floor - which is why it changes between
+# sessions and why it changed when FOUT+ was moved to the correct Mesa pin.
+# encoder.00.filter is already TRUE (15 sample clocks) and is NOT enough.
+#
+# SEEN ON SCREEN 2026-08-13, torch off and HBC65 idle: the ARC box read 39.
+# RESOLVED - it was the Offset units error at the top of this block, nothing
+# else. With Offset = -38.75 the maths is (3128 - (-38.75)) * 0.0124 = 39.27,
+# so a PERFECTLY healthy 3128 Hz displays as 39. It sat at 39 through the abs
+# fix, the scale sign flip and the 2 MHz sample clock because every one of
+# those is upstream of a frequency that was already correct.
+# Corroboration from an older note further down this file: "arc-voltage-out
+# pins near zero (measured ~0.5 V with no signal at all)". Under the correct
+# formula a dead counter with Offset -38.75 gives (0 + 38.75) * 0.0124 =
+# 0.48 V. That observation was right and nobody could explain it at the time.
+# Run ./thcad_zero.sh (LinuxCNC up, torch off) to re-check any of this - it
+# samples the encoder, prints the implied N and names the fault.
+#
+# DECISIVE TEST, torch off, costs a minute:
+#   DVM in Hz mode on FOUT+ referenced to P1.1 GND, next to a live read of
+#   hm2_7i92.0.encoder.00.velocity.
+#     meter ~3.1 kHz, HAL ~3.1 kHz -> counting is clean, calibrate normally
+#     meter ~3.1 kHz, HAL ~6.3/9.5 -> multiple counts per cycle, FIX THE WIRE
+#     meter ~9.5 kHz               -> the card really is emitting that, so
+#                                     the divider is not running /32
+# FIXES IF IT IS MULTIPLE-COUNTING: shorten/screen the FOUT+ run, keep it off
+# the torch and stepper looms, add a series resistor (~100R) at the source
+# and/or a small cap at the FPGA to slow the edge, or drive it properly
+# differentially. Re-fit only once the reading is stable across restarts.
 #   NOTE: 1M parts are often +-5%, so real total may be ~2.85-3.15M
-#   (VFS ~295-325V). Meter the string and recompute, or trim Fmax
-#   empirically against a DVM across the arc for a tight reading.
+#   (VFS ~295-325V). Fold this in when the real calibration finally happens.
+# WIDEN THE GLITCH FILTER (attempt at the wandering count multiplier above).
+# encoder.00.filter is a BIT, not a width - True = 15 sample clocks, False =
+# 3, and True is already the aggressive setting. The only way to lengthen the
+# window is to slow the sample clock the 15 counts are measured against.
+# Default 25-33 MHz -> 15 clocks = only 0.45-0.6 us, against a signal whose
+# period at 0 V is 320 us. Anything double-counting us is evidently WIDER
+# than 0.6 us, so the stock filter never sees it - which points at a slow,
+# noisy edge crossing the logic threshold several times, not fast ringing.
+#   2 MHz -> 15 clocks = 7.5 us glitch rejection (12-16x the stock window)
+# Ceiling check: the filter needs 15 clocks in EACH state, so max countable
+# is Fs/30 = 66.7 kHz. Full scale here is 28125 Hz (310 V), so 2.37x margin.
+# DO NOT drop to 1 MHz - that gives only 1.19x and would clip near full-scale
+# arc voltage, silently capping the reading at the top of the cut range.
+# Global to all standard encoder channels; encoder.00 is the only one in use.
+#
+# *** DISABLED 2026-08-13 17:20 - IT WAS THE CAUSE OF THE ARC-TIME COUNTER
+# *** FREEZE. CONFIRMED BY MEASUREMENT. DO NOT PUT IT BACK.
+# Back-to-back captures, same machine, same torch, ~10 minutes apart:
+#   2 MHz  (17:14): counter FROZE at 346468 for 1.41 s during the arc,
+#                   16 consecutive zero deltas, ARC box stuck at -38.79 V
+#   default(17:23): 46 torch-on samples, frequency tracked 3342 -> 13757 Hz,
+#                   arc volts 2.5 -> 131.8, steady cut 125-132 V,
+#                   ZERO frozen samples, ZERO negative deltas
+# And the multiplier did NOT return at the default width: thcad_zero.sh at
+# 17:22 gave N = 1.001 over 161 samples with sample-frequency=25000000.
+# So the wide filter was never needed in the first place. The 2x/3x counting
+# it was meant to cure had almost certainly already been fixed by moving FOUT+
+# to the correct Mesa pin - the filter change happened at the same time and
+# wrongly took the credit.
+# thcad_arc_log.sh caught a cut at 17:14: the counter counted normally up to
+# 8654 Hz as the voltage rose, then rawcounts FROZE at 346468 for 1.41 s while
+# the arc was live - 16 consecutive samples with delta exactly 0, and the
+# velocity estimator decaying 8.2 -> 4.8 -> 3.3 -> 2.5 -> 0 with no new counts.
+# Zero negative deltas in 498 samples, so this is NOT the floating-Quad-B
+# direction flip; no edges are arriving at all.
+# MECHANISM: filter=TRUE needs the input to HOLD each state for 15 sample
+# clocks. At 2 MHz that is 7.5 us. Continuous arc hash that toggles the line
+# faster than 7.5 us means no state ever persists long enough to register and
+# the counter stops dead. At the stock 25-33 MHz the window is 0.45-0.6 us,
+# roughly 13x more tolerant of fast noise - which is why the wide filter that
+# cured the multiple counting at IDLE is exactly the wrong setting under HF.
+# The two faults want opposite filter widths, so if the multiplier returns the
+# answer is NOT to re-widen this - it is to fix the signal (screen/reroute the
+# FOUT+ run off the torch loom, series R at the source, or go differential).
+# CHECK AFTER CHANGING THIS: ./thcad_zero.sh torch off (N must be ~1.00) AND
+# ./thcad_arc_log.sh across a real cut (must not freeze).
+#setp hm2_7i92.0.encoder.sample-frequency 2000000
 setp hm2_7i92.0.encoder.00.counter-mode 1
+# *** THE COUNT DIRECTION IS NOT STABLE - DO NOT CHASE IT WITH scale. ***
+# hostmot2 man page, counter-mode: "Set to True for Step/Dir (in which case
+# Step is on the A pin and Dir is on the B pin)." Quad-B is GPIO26 and it is
+# DELIBERATELY UNWIRED (only FOUT+ feeds Quad-A), so the direction input is a
+# floating CMOS pin and the counter picks a direction from whatever that pin
+# happens to settle at. It has now been observed BOTH ways:
+#   scale +1 -> velocity NEGATIVE  (2026-08-11, counter running down)
+#   scale -1 -> velocity NEGATIVE  (2026-08-13, counter running up)
+# Same symptom, opposite hardware state. Every time the sign was "fixed" by
+# flipping this scale, it came back inverted after a restart - flipping scale
+# only ever encodes which way GPIO26 floated on the day it was measured.
+#
+# WHY IT MATTERS: volts = (freq - Offset) * Scale, so a negative frequency
+# drives the reading hard negative - at -3128 Hz with the correct Offset of
+# 3128 that is (-3128 - 3128) * 0.0124 = -77.6 V. The reading then sits far
+# below Arc OK Low = 60, and in Mode 1 the whole thing looks like an arc-ok
+# input fault rather than a sign error.
+# (The -78 V figure was never actually SEEN on the ARC box - it was predicted
+# with the old wrong formula. What the box showed at -3128 Hz was -39.)
+#
+# FIX: take the magnitude and stop caring. The THCAD emits a FREQUENCY; a
+# frequency is never negative, so |velocity| is the true reading in EVERY
+# direction state and nothing downstream can be inverted by GPIO26 again.
+# scale is back to the LinuxCNC-documented +1 for the THCAD (see the
+# plasma-5i20 sample config) - with abs in the path its sign is irrelevant.
+#
+# REAL FIX, when there is a soldering iron to hand: tie GPIO26 (P1 pin 6) to
+# a defined level so the direction input stops floating. Try 1k to GND first,
+# re-run ./thcad_zero.sh, and if it counts down instead, move it to +3.3V.
+# abs stays in either way - it costs one float op and removes the failure
+# mode permanently.
 setp hm2_7i92.0.encoder.00.scale        1
-net  plasmac:arc-voltage-in  <=  hm2_7i92.0.encoder.00.velocity
+
+loadrt abs count=1
+addf   abs.0  servo-thread
+# custom.hal is the LAST halfile (see the ini), so abs.0 lands after plasmac
+# in the servo thread and the voltage plasmac reads is one servo period old.
+# 1 ms against "THC Sample Counts = 50" (50 ms of averaging) is nothing, and
+# comp.0 further down this file already runs with the same one-period lag.
+net  thcad-freq-raw          <=  hm2_7i92.0.encoder.00.velocity
+net  thcad-freq-raw          =>  abs.0.in
+net  plasmac:arc-voltage-in  <=  abs.0.out
 # ======================================================================
 
 # ======================================================================

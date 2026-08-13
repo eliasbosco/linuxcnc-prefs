@@ -1,6 +1,6 @@
 [PLASMA_PARAMETERS]
-Arc Voltage Offset = -38.750000
-Arc Voltage Scale = 0.000387500
+Arc Voltage Offset = 3128.400000
+Arc Voltage Scale = 0.012400000
 Setup Feed Rate = 16000.0
 Arc Fail Timeout = 3.0
 Arc OK High = 250.0
@@ -114,7 +114,7 @@ Corner lock enable = True
 Void lock enable = True
 Use auto volts = True
 Ohmic probe enable = False
-THC auto = False
+THC auto = True
 
 [CAMERA_OFFSET]
 Camera port = 0
@@ -122,14 +122,14 @@ X axis = 0.0
 Y axis = 0.0
 
 [STATISTICS]
-Cut time = 85.78
-Paused time = 5410.57
-Probe time = 908.8
-Program run time = 7065.9
-Torch on time = 292.02
-Rapid time = 235.88
-Cut length = 3957.8
-Pierce count = 74
+Cut time = 159.1
+Paused time = 6102.25
+Probe time = 1423.85
+Program run time = 8656.54
+Torch on time = 416.67
+Rapid time = 409.04
+Cut length = 7250.28
+Pierce count = 98
 
 [LASER_OFFSET]
 X axis = 0.0
@@ -149,4 +149,8 @@ Leadout = 0.0
 Hole diameter = 32.0
 Hole speed = 60
 Grid Size = 0.0
+
+[SINGLE CUT]
+X length = 0.0
+Y length = 0.0
 
