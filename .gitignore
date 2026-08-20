@@ -2,6 +2,7 @@ sim.axis.gantry/
 cnc_plasma_cutter/machine_log*
 cnc_plasma_cutter/__pycache__/
 cnc_plasma_cutter/save_position.log
+cnc_plasma_cutter/launch_plasma.log
 cnc_plasma_cutter/*.ini.tmp
 cnc_plasma_cutter/*.prehome
 cnc_plasma_cutter/*.preyfix
