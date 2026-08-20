@@ -1,7 +1,7 @@
 [DIALOG_GEOMETRY]
 AboutDialog-geometry = half
 LncMessage-geometry = default
-axisToolButtonDialog_ENTRY = 910 539 300 150
+axisToolButtonDialog_ENTRY = 440 499 300 150
 
 [DIALOG_OPTIONS]
 EntryDialog_play_sound = True
@@ -17,7 +17,7 @@ MachineLogDialog_sound_type = READY
 
 [BOOK_KEEPING]
 last_loaded_directory = /home/pi/linuxcnc/nc_files/examples/plasmac
-RecentPath_0 = /home/pi/linuxcnc/nc_files/examples/plasmac/metric_circles.ngc
+RecentPath_0 = /home/pi/linuxcnc/nc_files/examples/plasmac/metric_squares.ngc
 style_QSS_Path = DEFAULT
 
 [SCREEN_OPTIONS]
