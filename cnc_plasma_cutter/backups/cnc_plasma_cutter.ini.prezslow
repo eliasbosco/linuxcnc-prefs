@@ -97,7 +97,7 @@ MAX_LIMIT = 1350.0
 
 [JOINT_0]
 TYPE = LINEAR
-HOME = -0.000
+HOME = 0.000
 FERROR = 10.0
 MIN_FERROR = 1.0
 MAX_VELOCITY = 50.0
@@ -123,7 +123,7 @@ STEPSPACE  = 5000
 STEP_SCALE = 250.0
 MIN_LIMIT = 0.0
 MAX_LIMIT = 1350.0
-HOME_OFFSET = -0.000
+HOME_OFFSET = 0.000
 HOME_SEQUENCE = 2
 #******************************************
 
@@ -137,87 +137,6 @@ MIN_LIMIT = 0.0
 MAX_LIMIT = 900.0
 
 [JOINT_1]
-TYPE = LINEAR
-HOME = -0.000
-FERROR = 10.0
-MIN_FERROR = 1.0
-MAX_VELOCITY = 50.0
-MAX_ACCELERATION = 500.0
-# The values below should be 25% larger than MAX_VELOCITY and MAX_ACCELERATION
-# If using BACKLASH compensation STEPGEN_MAXACCEL should be 100% larger.
-STEPGEN_MAXVEL = 62.5
-STEPGEN_MAXACCEL = 625.0
-P = 1000.0
-I = 0.0
-D = 0.0
-FF0 = 0.0
-FF1 = 1.0
-FF2 = 0.0
-BIAS = 0.0
-DEADBAND = 0.0
-MAX_OUTPUT = 0.0
-# these are in nanoseconds
-DIRSETUP   = 10000
-DIRHOLD    = 10000
-STEPLEN    = 5000
-STEPSPACE  = 5000
-STEP_SCALE = 250.0
-MIN_LIMIT = 0.0
-MAX_LIMIT = 900.0
-HOME_OFFSET = -0.000
-# Negative sequence = home together with the other Y joint (JOINT_3) as a gantry
-HOME_SEQUENCE = -3
-#******************************************
-
-#******************************************
-[AXIS_Z]
-# MAX_VEL & MAX_ACC need to be twice the corresponding joint value
-MAX_VELOCITY = 100.0
-MAX_ACCELERATION = 1600.0
-OFFSET_AV_RATIO = 0.5
-# Z home is the top of the working envelope: MAX_LIMIT = 0 means the torch can
-# never rise above the position it was homed at. Home with the torch about
-# 25 mm above the plate so the Safe Height / Probe Start Height of 25 mm fits
-# between home and the material without needing travel above zero.
-MIN_LIMIT = -60.0
-MAX_LIMIT = 0.0
-
-[JOINT_2]
-TYPE = LINEAR
-HOME = -0.000
-FERROR = 10.0
-MIN_FERROR = 1.0
-MAX_VELOCITY = 50.0
-MAX_ACCELERATION = 800.0
-# The values below should be 25% larger than MAX_VELOCITY and MAX_ACCELERATION
-# If using BACKLASH compensation STEPGEN_MAXACCEL should be 100% larger.
-STEPGEN_MAXVEL = 62.5
-STEPGEN_MAXACCEL = 1000.0
-P = 1000.0
-I = 0.0
-D = 0.0
-FF0 = 0.0
-FF1 = 1.0
-FF2 = 0.0
-BIAS = 0.0
-DEADBAND = 0.0
-MAX_OUTPUT = 0.0
-# these are in nanoseconds
-DIRSETUP   = 10000
-DIRHOLD    = 10000
-STEPLEN    = 5000
-STEPSPACE  = 5000
-STEP_SCALE = 250.0
-MIN_LIMIT = -60.0
-MAX_LIMIT = 0.0
-HOME_OFFSET = -0.000
-HOME_SEQUENCE = 1
-#******************************************
-
-#******************************************
-# JOINT_3 is the second Y motor (former A axis), slaved to Y via XYZY kinematics.
-# It has no [AXIS_A] section: its axis limits/velocity come from [AXIS_Y] above.
-[JOINT_3]
 TYPE = LINEAR
 HOME = 0.000
 FERROR = 10.0
@@ -246,6 +165,86 @@ STEP_SCALE = 250.0
 MIN_LIMIT = 0.0
 MAX_LIMIT = 900.0
 HOME_OFFSET = 0.000
+# Negative sequence = home together with the other Y joint (JOINT_3) as a gantry
+HOME_SEQUENCE = -3
+#******************************************
+
+#******************************************
+[AXIS_Z]
+# MAX_VEL & MAX_ACC need to be twice the corresponding joint value
+MAX_VELOCITY = 160.0
+MAX_ACCELERATION = 1600.0
+OFFSET_AV_RATIO = 0.5
+# Z zero is homed at the material top, so the envelope straddles it: 30 mm of
+# headroom above (fits QtPlasmaC Safe Height / Probe Start Height of 25 mm)
+# and 60 mm below. Total travel is unchanged at 90 mm.
+MIN_LIMIT = -60.0
+MAX_LIMIT = 30.0
+
+[JOINT_2]
+TYPE = LINEAR
+HOME = 0.000
+FERROR = 10.0
+MIN_FERROR = 1.0
+MAX_VELOCITY = 80.0
+MAX_ACCELERATION = 800.0
+# The values below should be 25% larger than MAX_VELOCITY and MAX_ACCELERATION
+# If using BACKLASH compensation STEPGEN_MAXACCEL should be 100% larger.
+STEPGEN_MAXVEL = 100.0
+STEPGEN_MAXACCEL = 1000.0
+P = 1000.0
+I = 0.0
+D = 0.0
+FF0 = 0.0
+FF1 = 1.0
+FF2 = 0.0
+BIAS = 0.0
+DEADBAND = 0.0
+MAX_OUTPUT = 0.0
+# these are in nanoseconds
+DIRSETUP   = 10000
+DIRHOLD    = 10000
+STEPLEN    = 5000
+STEPSPACE  = 5000
+STEP_SCALE = 250.0
+MIN_LIMIT = -60.0
+MAX_LIMIT = 30.0
+HOME_OFFSET = 0.000
+HOME_SEQUENCE = 1
+#******************************************
+
+#******************************************
+# JOINT_3 is the second Y motor (former A axis), slaved to Y via XYZY kinematics.
+# It has no [AXIS_A] section: its axis limits/velocity come from [AXIS_Y] above.
+[JOINT_3]
+TYPE = LINEAR
+HOME = -0.000
+FERROR = 10.0
+MIN_FERROR = 1.0
+MAX_VELOCITY = 50.0
+MAX_ACCELERATION = 500.0
+# The values below should be 25% larger than MAX_VELOCITY and MAX_ACCELERATION
+# If using BACKLASH compensation STEPGEN_MAXACCEL should be 100% larger.
+STEPGEN_MAXVEL = 62.5
+STEPGEN_MAXACCEL = 625.0
+P = 1000.0
+I = 0.0
+D = 0.0
+FF0 = 0.0
+FF1 = 1.0
+FF2 = 0.0
+BIAS = 0.0
+DEADBAND = 0.0
+MAX_OUTPUT = 0.0
+# these are in nanoseconds
+DIRSETUP   = 10000
+DIRHOLD    = 10000
+STEPLEN    = 5000
+STEPSPACE  = 5000
+STEP_SCALE = 250.0
+MIN_LIMIT = 0.0
+MAX_LIMIT = 900.0
+HOME_OFFSET = -0.000
 # Same negative sequence as JOINT_1 so both Y joints home together
 HOME_SEQUENCE = -3
 #******************************************

@@ -1,7 +1,7 @@
 [PLASMA_PARAMETERS]
 Arc Voltage Offset = 3128.400000
 Arc Voltage Scale = 0.012400000
-Setup Feed Rate = 16000.0
+Setup Feed Rate = 1600.0
 Arc Fail Timeout = 3.0
 Arc OK High = 250.0
 Arc OK Low = 60.0
@@ -15,7 +15,7 @@ Ohmic Probe Offset = 0.0
 Pid P Gain = 10.0
 Pid D Gain = 0.0
 Pid I Gain = 0.0
-Probe Feed Rate = 300.0
+Probe Feed Rate = 2400.0
 Probe Start Height = 25.0
 Arc Restart Delay = 1.0
 Safe Height = 25.0
@@ -109,7 +109,7 @@ Disabled = #b0b0b0
 Preview = #000000
 
 [ENABLE_OPTIONS]
-THC enable = True
+THC enable = False
 Corner lock enable = True
 Void lock enable = True
 Use auto volts = True
