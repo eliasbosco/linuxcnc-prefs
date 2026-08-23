@@ -42,15 +42,19 @@ deceleration), and those amps are **extrapolated, not chart values**.
 If thin sheet still cuts poorly, the real fix is FineCut consumables, which
 are designed for exactly this case.
 
-## Cut height stays at 1.0 mm - deliberately
+## Cut height: 2.5 mm everywhere (changed 2026-08-23)
 
-The Hypertherm charts specify 3.2 mm cut height. That is **not** copied here.
-It is matched to Hypertherm shielded consumables, and cut height is the main
-driver of arc voltage - copying it would invalidate every CUT_VOLTS value.
-1.0 mm is the value already proven on this machine.
+Went 1.0 -> 2.0 -> 2.5 mm across 2026-08-23, on every entry. The Hypertherm
+charts specify 3.2 mm, which is still **not** copied here - that figure is
+matched to Hypertherm shielded consumables - but 2.5 mm is now most of the way
+there.
 
-If you ever change CUT_HEIGHT, **all the CUT_VOLTS values shift** and must be
-re-measured. Higher torch = higher voltage.
+Cut height is the main driver of arc voltage, so **every CUT_VOLTS value below
+is now stale**. They were measured or derived at 1.0 mm, and at 0.1 mm per volt
+the 1.5 mm rise is roughly +15 V. Nothing is broken today because
+`Use auto volts = True` makes plasmac sample the real arc voltage and ignore
+CUT_VOLTS entirely. Re-measure every entry with `./thcad_arc_log.sh` before you
+ever turn auto-volts off, or the THC will drive the torch about 1 mm low.
 
 ## CUT_VOLTS - anchored on one real measurement
 
@@ -79,27 +83,39 @@ cuts a narrower kerf than Hypertherm's. Kerf directly sets part dimensions
 via the CAM offset, so measure it: cut a 100 mm square, measure it, and the
 difference from 100 is the kerf error.
 
-## Pierce heights
+## Pierce heights: 4.0 mm everywhere (changed 2026-08-23)
 
-Chart uses 120% of cut height (200% for 16 mm+). At a 1.0 mm cut height that
-would be 1.2 mm, which is too low to keep blowback off the shield, so 3.0 mm
-is kept - the value already in use here - rising to 3.5/4.0 for 12-20 mm.
+Chart uses 120% of cut height (200% for 16 mm+), which even at the new 2.5 mm
+cut height would be 3.0 mm - too low to keep blowback off the shield. A flat
+4.0 mm is now used on every entry, replacing the old 3.0 mm with 3.5/4.0 for
+12-20 mm. PIERCE_DELAY is unchanged and was tuned at 3.0 mm, so the thin
+entries (1-3 mm, at 0.1-0.3 s) have the least margin: a higher pierce takes
+slightly longer to transfer, so watch for motion starting before breakthrough.
 
 ## Per-entry notes
 
 | # | material | amps | speed | source |
 |---|----------|------|-------|--------|
 | 0 | Basic default | 40 | 3000 | your existing tuned entry, untouched |
-| 1 | MS 1 mm | 30 | 2900 | **extrapolated** - speed limited |
-| 2 | MS 2 mm | 35 | 2900 | **extrapolated** - speed limited |
-| 3 | MS 3 mm | 40 | 2900 | **extrapolated** - speed limited |
-| 4 | MS 4 mm | 45 | 2600 | chart 45 A = 2260 best / 3400 production |
-| 5 | MS 6 mm | 55 | 2000 | between chart 45 A (1240) and 65 A (2570) |
-| 6 | MS 8 mm | 65 | 1550 | chart 65 A best quality |
-| 7 | MS 10 mm | 65 | 1040 | chart 65 A best quality |
-| 8 | MS 12 mm | 65 | 840 | chart 65 A best quality |
-| 9 | MS 16 mm | 65 | 560 | chart 65 A, pierce is marginal at this thickness |
-| 10 | MS 20 mm | 65 | 380 | chart 65 A - **EDGE START ONLY, do not pierce** |
+| 1 | MS 1 mm | 30 | 2900 | **extrapolated** - still at the X/Y ceiling |
+| 2 | MS 2 mm | 35 | 2900 | **extrapolated** - still at the X/Y ceiling |
+| 3 | MS 3 mm | 40 | 2900 | **extrapolated** - still at the X/Y ceiling |
+| 4 | MS 4 mm | 45 | 1625 | chart 2600 x 0.625 - likely slow, see tuning log |
+| 5 | MS 6 mm | 55 | 1250 | **measured on this machine** - the anchor |
+| 6 | MS 8 mm | 65 | 970 | chart 1550 x 0.625 |
+| 7 | MS 10 mm | 65 | 650 | chart 1040 x 0.625 |
+| 8 | MS 12 mm | 65 | 525 | chart 840 x 0.625 |
+| 9 | MS 16 mm | 65 | 350 | chart 560 x 0.625, pierce marginal at this thickness |
+| 10 | MS 20 mm | 65 | 240 | chart 380 x 0.625 - **EDGE START ONLY, do not pierce** |
+| 11 | AL 0.5 mm | 25 | 2900 | **extrapolated** - ceiling, turn the dial down |
+| 12 | AL 1 mm | 30 | 2900 | **extrapolated** - ceiling, turn the dial down |
+| 13 | AL 2 mm | 35 | 2900 | **extrapolated** - X/Y ceiling |
+| 14 | AL 3 mm | 40 | 2900 | **extrapolated** - X/Y ceiling |
+| 15 | AL 4 mm | 45 | 1625 | = MS 4 mm |
+| 16 | AL 5 mm | 50 | 1440 | interpolated between MS 4 mm and MS 6 mm |
+| 17 | AL 6 mm | 55 | 1250 | = MS 6 mm |
+| 18 | AL 8 mm | 65 | 970 | = MS 8 mm |
+| 19 | AL 10 mm | 65 | 650 | = MS 10 mm |
 
 16 mm is near the practical pierce limit for a 65 A machine. 20 mm is beyond
 it: the chart specifies edge start, so lead in from the edge of the plate.
@@ -115,3 +131,121 @@ Piercing 20 mm floods the shield with molten metal and destroys consumables.
 3. Then measure kerf and correct the CAM offset.
 4. Then measure CUT_VOLTS with thcad_arc_log.sh if you intend to disable
    auto-volts.
+
+## Aluminium (entries 11-19, added 2026-08-23)
+
+**Every aluminium number here is extrapolated from the mild steel set. None of
+it is chart data** - no aluminium air cut chart was used, because none was to
+hand that matches this torch.
+
+Speeds are set to the **mild steel speed for the same thickness**, with no speed
+bonus, and 5 mm is interpolated between MS 4 mm and MS 6 mm. Aluminium usually
+cuts at or slightly above the mild steel speed for the same thickness, so these
+are deliberately on the slow side: too slow gives dross, which is recoverable,
+while too fast fails to sever, which is the expensive mistake. Walk each one up
+in 100 mm/min steps and stop one step before the cut starts trailing.
+
+Derived from the mild steel entries as follows:
+
+- **KERF_WIDTH** = MS kerf + 0.1 mm. A guess. Measure it - cut a 100 mm square
+  and the difference from 100 is the kerf error.
+- **PIERCE_DELAY** a clean monotonic ramp 0.1 s to 1.0 s. Note this does *not*
+  copy the MS ramp, which is non-monotonic (8 mm sits at 0.5 s, below 6 mm's
+  0.6 s) - that looks like an artefact in the steel set rather than intent.
+- **CUT_VOLTS** = MS + 10 V, because aluminium runs a higher arc voltage at the
+  same standoff. **Placeholder only.** Every CUT_VOLTS in this file is already
+  stale (see the cut height section), and these were never measured at all.
+- **CUT_AMPS** mirrors the MS entry, and is inert either way - see the note on
+  the dial below.
+
+Two aluminium-specific things:
+
+**Puddle jump is the first thing to try if pierces splash the shield.** It is
+disabled (0.0) on every entry here, matching the rest of the file. The plasmac
+component's pin metadata defines `puddle_jump_height` as a **percentage of
+pierce height**, not a distance - so with pierce height at 4.0 mm and cut height
+at 2.5 mm, anything at or below 62.5% lands at or under the cut height and does
+nothing. Start around 85% (3.4 mm) with a short `PUDDLE_JUMP_DELAY`.
+
+**Ohmic probing does not work on aluminium** - the oxide layer is an insulator.
+Not an issue today (`Ohmic probe enable = False`, float switch only), but do not
+enable ohmic sensing and expect it to find aluminium.
+
+## Tuning log
+
+### 2026-08-23 - MS 6mm calibrated at 1250 mm/min, table rescaled twice
+
+First cuts in real 6 mm mild steel. At the original 2000 mm/min the arc reached
+only 3-4 mm of the 6 mm and sparks blew back over the top of the plate - the
+signature of not enough energy per unit length. That 2000 was never a chart
+value: it was a linear interpolation between the 45 A (1240) and 65 A (2570)
+columns at a nominal 55 A, and interpolating across amperage classes is
+optimistic for a torch that is not a Hypertherm.
+
+Hand tuning at the machine went 2000 -> 900 (severed, too slow) -> **1250**,
+which is where it stands. Pierce height 4.0 mm was set on every entry along the
+way, and cut height went 1.0 -> 2.0 -> 2.5 mm. The chart-derived speeds were
+rescaled by the anchor's correction factor:
+
+    1250 / 2000 = 0.625
+
+| # | thickness | chart | now |
+|---|-----------|-------|------|
+| 4 | 4 mm      | 2600  | 1625 |
+| 6 | 8 mm      | 1550  |  970 |
+| 7 | 10 mm     | 1040  |  650 |
+| 8 | 12 mm     |  840  |  525 |
+| 9 | 16 mm     |  560  |  350 |
+| 10| 20 mm     |  380  |  240 |
+
+Entries 0-3 are **not** scaled, deliberately. Their speeds are not cutting
+speeds - they are the X/Y velocity ceiling of 3000 mm/min (2900 with corner
+headroom), because the chart wants 3630-8890 mm/min there and the gantry cannot
+deliver it. Multiplying a ceiling by 0.625 would just dump 60% more heat per
+millimetre into thin sheet at a fixed dial current, which is the exact failure
+the "binding constraint" section above warns about.
+
+### The anchor now matches the 45 A chart almost exactly
+
+Worth noticing: the calibrated 1250 mm/min sits within **1%** of the Hypertherm
+45 A best-quality figure for 6 mm, which is 1240. Ratio 1.008.
+
+That is a useful result. It says the torch is behaving like the 45 A column, so
+for 1-6 mm the 45 A chart can be read more or less directly instead of being
+scaled, and it corroborates the dial sitting near 45 A.
+
+It also flags **MS 4 mm as probably too slow**. The proportional scaling gives
+1625, but the 45 A chart says 2260 for 4 mm, which at the 1.008 ratio is about
+2280 - some 40% faster. The scaled value is conservative because the original
+2600 had been pushed above the chart's best-quality figure toward the production
+figure of 3400, so scaling it down inherited that distortion. Test 4 mm nearer
+2280.
+
+An earlier version of this log suggested testing 3 mm at ~2600. **That is
+superseded.** It was derived from the 900 mm/min anchor; at 1250 the 45 A chart
+figure of 3630 scales to about 3660, which is above the 3000 mm/min ceiling, so
+3 mm is genuinely still speed limited at 2900.
+
+The 8 mm and thicker entries came from the **65 A** column, so scaling them by a
+factor measured against a 45 A-behaving torch is a proxy, not a derivation.
+Published 45 A charts stop well before 20 mm, so there was nothing better to
+use. Treat 8 mm and up as the least trustworthy numbers in the file.
+
+**CUT_AMPS is display-only on this machine.** In qtplasmac_handler.py the
+`cut_amps` widget is wired solely to the `pmx485_*` Powermax RS-485 pins and its
+tooltip is literally "Powermax cutting current". `[POWERMAX] Port` is empty, so
+nothing reads CUT_AMPS except the statistics text. The real current is the
+**dial on the HBC65 front panel**, and the 0.625 factor is only valid for
+whatever the dial was set to during the 6 mm calibration. Move the dial and the
+whole table needs rescaling.
+
+**The anchor was measured at a 2.0 mm cut height, then the whole table moved to
+2.5 mm.** The 1250 was not re-verified at the taller standoff. A 0.5 mm rise
+spreads the arc column a little further before it reaches the plate, so if 6 mm
+stops severing cleanly the anchor needs re-measuring and every scaled speed
+moves with it. Re-cut the 6 mm test piece first, before trusting anything
+derived from it.
+
+Next: test MS 4 mm near 2280, then cut test pieces in 8 and 12 mm and adjust by
+dross - a fine bead that snaps off is right, thick clingy dross underneath means
+too slow, a cut that trails or does not break through means too fast.
