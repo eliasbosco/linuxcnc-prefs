@@ -20,13 +20,10 @@ INCREMENTS = 10mm 1mm .1mm .01mm .001mm
 POSITION_FEEDBACK = ACTUAL
 # Jog rate, in mm/s, and it is GLOBAL - LinuxCNC has one jog slider for all
 # axes, not a per-axis rate. DEFAULT is where the slider starts; MAX is how
-# far it can be pushed. MAX is deliberately ABOVE [JOINT_0]MAX_VELOCITY (50 vs
-# X's 25): a jog asking for more than a joint can do is clamped to that joint,
-# so Y and Z get the full 50 mm/s while X quietly limits itself to 25. The
-# slider reading is therefore a ceiling, not a promise of what X will do.
-# Doubled 25 -> 50 on 2026-09-02 when Y and Z were doubled.
-DEFAULT_LINEAR_VELOCITY = 24.000000
-MAX_LINEAR_VELOCITY = 50.000000
+# far it can be pushed. MAX stays at 25 because that is [JOINT_0]MAX_VELOCITY,
+# the 2 mm-lead X screw's ceiling and the slowest axis on the machine.
+DEFAULT_LINEAR_VELOCITY = 12.000000
+MAX_LINEAR_VELOCITY = 25.000000
 MIN_LINEAR_VELOCITY = 0.500000
 DEFAULT_ANGULAR_VELOCITY = 12.000000
 MAX_ANGULAR_VELOCITY = 180.000000
@@ -84,8 +81,8 @@ MAX_ANGULAR_VELOCITY = 333.33
 DEFAULT_ANGULAR_VELOCITY = 33.33
 LINEAR_UNITS = mm
 ANGULAR_UNITS = degree
-DEFAULT_LINEAR_VELOCITY = 100.0
-MAX_LINEAR_VELOCITY = 200.0
+DEFAULT_LINEAR_VELOCITY = 50.0
+MAX_LINEAR_VELOCITY = 100.0
 NO_FORCE_HOMING = 1
 
 [EMCIO]
@@ -97,10 +94,7 @@ TOOL_TABLE = tool.tbl
 # X runs on a TR10x2 trapezoidal leadscrew (10 mm dia, 2 mm pitch, single
 # start = 2 mm of travel per motor revolution, 1500 mm long). That is a
 # QUARTER of the 8 mm lead used on Y and Z, so X needs 4x their step scale
-# and a quarter of their velocity for the same motor rpm. The velocities below
-# do honour that: X 25 mm/s and Y/Z 100 mm/s are all 750 motor rpm. X is still
-# the axis that complains first, because it is also the longest screw - see
-# the whip note in [JOINT_0].
+# and a quarter of their velocity for the same motor rpm.
 [AXIS_X]
 # MAX_VEL & MAX_ACC need to be twice the corresponding joint value
 MAX_VELOCITY = 50.0
@@ -114,25 +108,10 @@ TYPE = LINEAR
 HOME = 0.000
 FERROR = 10.0
 MIN_FERROR = 1.0
-# 25 mm/s = 1500 mm/min = 750 rpm on a 2 mm lead. DO NOT RAISE THIS WITHOUT A
-# MECHANICAL CHANGE FIRST. Tried 50 mm/s (1500 rpm) on 2026-09-02 together
-# with the Y/Z doubling: Y and Z were fine, but the X screw whipped badly and
-# it was reverted the same day.
-#
-# Why, and why it is not a tuning problem: whip is lateral resonance, not a
-# torque or accel limit, so no P/I/D or STEPGEN change touches it. The gantry
-# nut is an intermediate lateral support, so the free span - and the critical
-# speed - depends on where X is standing. Near either end of travel the span
-# is the full ~1500 mm, and first critical for a TR10x2 (7.5 mm root dia) is
-# only 396-900 rpm depending on how the end blocks constrain the screw.
-# Mid-travel the span halves and critical rises ~4x. So 750 rpm is ALREADY
-# at or near critical near the ends; 1500 rpm is far past it everywhere.
-#
-# Real fixes, in increasing order of work: support the screw mid-span with an
-# anti-whip follower, go to a larger-diameter or higher-lead screw (a 16 mm
-# ballscrew moves critical up by d/L^2 and needs fewer rpm per mm), or drive X
-# by belt or rack and pinion and stop turning a 1.5 m screw at all.
-# Acceleration was left alone at 500.
+# 25 mm/s = 1500 mm/min = 750 rpm on a 2 mm lead. The old 50 mm/s was
+# inherited from the 8 mm-lead axes and would ask the NEMA23 for 1500 rpm,
+# where it has almost no torque left and will stall. Raise this only after
+# testing a full-length rapid with the gantry mass on it.
 MAX_VELOCITY = 25.0
 MAX_ACCELERATION = 500.0
 # The values below should be 25% larger than MAX_VELOCITY and MAX_ACCELERATION
@@ -168,7 +147,7 @@ HOME_SEQUENCE = 2
 #******************************************
 [AXIS_Y]
 # MAX_VEL & MAX_ACC need to be twice the corresponding joint value
-MAX_VELOCITY = 200.0
+MAX_VELOCITY = 100.0
 MAX_ACCELERATION = 1000.0
 OFFSET_AV_RATIO = 0.5
 MIN_LIMIT = 0.0
@@ -179,11 +158,11 @@ TYPE = LINEAR
 HOME = 0.000
 FERROR = 10.0
 MIN_FERROR = 1.0
-MAX_VELOCITY = 100.0
+MAX_VELOCITY = 50.0
 MAX_ACCELERATION = 500.0
 # The values below should be 25% larger than MAX_VELOCITY and MAX_ACCELERATION
 # If using BACKLASH compensation STEPGEN_MAXACCEL should be 100% larger.
-STEPGEN_MAXVEL = 125.0
+STEPGEN_MAXVEL = 62.5
 STEPGEN_MAXACCEL = 625.0
 P = 1000.0
 I = 0.0
@@ -210,7 +189,7 @@ HOME_SEQUENCE = -3
 #******************************************
 [AXIS_Z]
 # MAX_VEL & MAX_ACC need to be twice the corresponding joint value
-MAX_VELOCITY = 200.0
+MAX_VELOCITY = 100.0
 MAX_ACCELERATION = 1600.0
 OFFSET_AV_RATIO = 0.5
 # Z home is the top of the working envelope: MAX_LIMIT = 0 means the torch can
@@ -225,11 +204,11 @@ TYPE = LINEAR
 HOME = 0.000
 FERROR = 10.0
 MIN_FERROR = 1.0
-MAX_VELOCITY = 100.0
+MAX_VELOCITY = 50.0
 MAX_ACCELERATION = 800.0
 # The values below should be 25% larger than MAX_VELOCITY and MAX_ACCELERATION
 # If using BACKLASH compensation STEPGEN_MAXACCEL should be 100% larger.
-STEPGEN_MAXVEL = 125.0
+STEPGEN_MAXVEL = 62.5
 STEPGEN_MAXACCEL = 1000.0
 P = 1000.0
 I = 0.0
@@ -257,14 +236,14 @@ HOME_SEQUENCE = 1
 # It has no [AXIS_A] section: its axis limits/velocity come from [AXIS_Y] above.
 [JOINT_3]
 TYPE = LINEAR
-HOME = 0.000
+HOME = -0.000
 FERROR = 10.0
 MIN_FERROR = 1.0
-MAX_VELOCITY = 100.0
+MAX_VELOCITY = 50.0
 MAX_ACCELERATION = 500.0
 # The values below should be 25% larger than MAX_VELOCITY and MAX_ACCELERATION
 # If using BACKLASH compensation STEPGEN_MAXACCEL should be 100% larger.
-STEPGEN_MAXVEL = 125.0
+STEPGEN_MAXVEL = 62.5
 STEPGEN_MAXACCEL = 625.0
 P = 1000.0
 I = 0.0
@@ -283,7 +262,7 @@ STEPSPACE  = 5000
 STEP_SCALE = 250.0
 MIN_LIMIT = 0.0
 MAX_LIMIT = 890.0
-HOME_OFFSET = 0.000
+HOME_OFFSET = -0.000
 # Same negative sequence as JOINT_1 so both Y joints home together
 HOME_SEQUENCE = -3
 #******************************************
