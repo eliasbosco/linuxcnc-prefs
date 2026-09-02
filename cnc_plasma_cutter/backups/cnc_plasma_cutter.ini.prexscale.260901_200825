@@ -18,11 +18,7 @@ INTRO_TIME = 5
 PROGRAM_PREFIX = /home/pi/linuxcnc/nc_files
 INCREMENTS = 10mm 1mm .1mm .01mm .001mm
 POSITION_FEEDBACK = ACTUAL
-# Jog rate, in mm/s, and it is GLOBAL - LinuxCNC has one jog slider for all
-# axes, not a per-axis rate. DEFAULT is where the slider starts; MAX is how
-# far it can be pushed. MAX stays at 25 because that is [JOINT_0]MAX_VELOCITY,
-# the 2 mm-lead X screw's ceiling and the slowest axis on the machine.
-DEFAULT_LINEAR_VELOCITY = 12.000000
+DEFAULT_LINEAR_VELOCITY = 6.000000
 MAX_LINEAR_VELOCITY = 25.000000
 MIN_LINEAR_VELOCITY = 0.500000
 DEFAULT_ANGULAR_VELOCITY = 12.000000
@@ -91,32 +87,24 @@ CYCLE_TIME = 0.100
 TOOL_TABLE = tool.tbl
 
 #******************************************
-# X runs on a TR10x2 trapezoidal leadscrew (10 mm dia, 2 mm pitch, single
-# start = 2 mm of travel per motor revolution, 1500 mm long). That is a
-# QUARTER of the 8 mm lead used on Y and Z, so X needs 4x their step scale
-# and a quarter of their velocity for the same motor rpm.
 [AXIS_X]
 # MAX_VEL & MAX_ACC need to be twice the corresponding joint value
-MAX_VELOCITY = 50.0
+MAX_VELOCITY = 100.0
 MAX_ACCELERATION = 1000.0
 OFFSET_AV_RATIO = 0.5
 MIN_LIMIT = 0.0
-MAX_LIMIT = 1280.0
+MAX_LIMIT = 1350.0
 
 [JOINT_0]
 TYPE = LINEAR
 HOME = 0.000
 FERROR = 10.0
 MIN_FERROR = 1.0
-# 25 mm/s = 1500 mm/min = 750 rpm on a 2 mm lead. The old 50 mm/s was
-# inherited from the 8 mm-lead axes and would ask the NEMA23 for 1500 rpm,
-# where it has almost no torque left and will stall. Raise this only after
-# testing a full-length rapid with the gantry mass on it.
-MAX_VELOCITY = 25.0
+MAX_VELOCITY = 50.0
 MAX_ACCELERATION = 500.0
 # The values below should be 25% larger than MAX_VELOCITY and MAX_ACCELERATION
 # If using BACKLASH compensation STEPGEN_MAXACCEL should be 100% larger.
-STEPGEN_MAXVEL = 31.25
+STEPGEN_MAXVEL = 62.5
 STEPGEN_MAXACCEL = 625.0
 P = 1000.0
 I = 0.0
@@ -132,14 +120,9 @@ DIRSETUP   = 10000
 DIRHOLD    = 10000
 STEPLEN    = 5000
 STEPSPACE  = 5000
-# 2000 pulse/rev driver / 2 mm lead = 1000 steps/mm. Was 250 (the 8 mm-lead
-# value), which made X travel exactly a quarter of what was commanded.
-STEP_SCALE = 1000.0
+STEP_SCALE = 250.0
 MIN_LIMIT = 0.0
-# Verified on the machine 2026-09-01, after the STEP_SCALE fix made X travel
-# the distance it is actually asked for. 1280 mm is the usable travel; the
-# earlier 1350 was a template guess that had never been reached physically.
-MAX_LIMIT = 1280.0
+MAX_LIMIT = 1350.0
 HOME_OFFSET = 0.000
 HOME_SEQUENCE = 2
 #******************************************
@@ -151,7 +134,7 @@ MAX_VELOCITY = 100.0
 MAX_ACCELERATION = 1000.0
 OFFSET_AV_RATIO = 0.5
 MIN_LIMIT = 0.0
-MAX_LIMIT = 890.0
+MAX_LIMIT = 900.0
 
 [JOINT_1]
 TYPE = LINEAR
@@ -180,7 +163,7 @@ STEPLEN    = 5000
 STEPSPACE  = 5000
 STEP_SCALE = 250.0
 MIN_LIMIT = 0.0
-MAX_LIMIT = 890.0
+MAX_LIMIT = 900.0
 HOME_OFFSET = 0.000
 # Negative sequence = home together with the other Y joint (JOINT_3) as a gantry
 HOME_SEQUENCE = -3
@@ -201,7 +184,7 @@ MAX_LIMIT = 0.0
 
 [JOINT_2]
 TYPE = LINEAR
-HOME = -0.000
+HOME = 0.000
 FERROR = 10.0
 MIN_FERROR = 1.0
 MAX_VELOCITY = 50.0
@@ -227,7 +210,7 @@ STEPSPACE  = 5000
 STEP_SCALE = 250.0
 MIN_LIMIT = -60.0
 MAX_LIMIT = 0.0
-HOME_OFFSET = -0.000
+HOME_OFFSET = 0.000
 HOME_SEQUENCE = 1
 #******************************************
 
@@ -261,7 +244,7 @@ STEPLEN    = 5000
 STEPSPACE  = 5000
 STEP_SCALE = 250.0
 MIN_LIMIT = 0.0
-MAX_LIMIT = 890.0
+MAX_LIMIT = 900.0
 HOME_OFFSET = 0.000
 # Same negative sequence as JOINT_1 so both Y joints home together
 HOME_SEQUENCE = -3
