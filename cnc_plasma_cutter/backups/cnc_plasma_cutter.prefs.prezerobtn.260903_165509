@@ -15,7 +15,7 @@ Ohmic Probe Offset = 0.0
 Pid P Gain = 10.0
 Pid D Gain = 0.0
 Pid I Gain = 0.0
-Probe Feed Rate = 350.0
+Probe Feed Rate = 100.0
 Probe Start Height = 25.0
 Arc Restart Delay = 1.0
 Safe Height = 25.0
@@ -71,8 +71,8 @@ Custom style = None
 8 Code = o<park> call
 9 Name = DXF
 9 Code = %/home/pi/linuxcnc/configs/cnc_plasma_cutter/dxf2ngc.py
-10 Name = SET ZERO\HERE
-10 Code = %/home/pi/linuxcnc/configs/cnc_plasma_cutter/set_zero_here.py
+10 Name = 
+10 Code = 
 11 Name = 
 11 Code = 
 12 Name = 
@@ -122,14 +122,14 @@ X axis = 0.0
 Y axis = 0.0
 
 [STATISTICS]
-Cut time = 469.59
-Paused time = 7428.1
-Probe time = 1688.78
-Program run time = 11036.1
-Torch on time = 825.47
-Rapid time = 757.18
-Cut length = 13651.99
-Pierce count = 159
+Cut time = 289.19
+Paused time = 6696.71
+Probe time = 1536.98
+Program run time = 9622.99
+Torch on time = 600.7
+Rapid time = 462.51
+Cut length = 10011.82
+Pierce count = 133
 
 [LASER_OFFSET]
 X axis = 0.0

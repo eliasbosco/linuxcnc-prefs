@@ -1,16 +1,33 @@
 """
-Append the park move to the end of every job.
+Hold non-cutting travel to 1000 mm/min, and append the park move to every job.
 
 QtPlasmaC runs every loaded file through /usr/bin/qtplasmac_gcode
 ([FILTER] ngc in the INI). That filter looks for custom_filter.py beside the
-INI and, if present, exec()s it before processing the file. We use that hook to
-insert "o<park> call" ahead of the program end code, so a completed job always
-finishes with the torch lifted to machine Z0 and the gantry back at X0 Y0 --
-the same thing the PARK user button does.
+INI and, if present, exec()s it before processing the file. We use that hook
+twice, both in write_gcode(), the filter's final step:
 
-The insertion happens in write_gcode(), the filter's final step, rather than in
-the per-line custom_post_parse() hook, because write_gcode() sees the whole
-output. That covers every way a program can end:
+  1. Rapids become feed moves at 1000 mm/min. LinuxCNC has no rapid feed rate
+     setting - G0 runs at whatever the participating joints allow, which here
+     is 1500 mm/min on X and 6000 on Y and Z. Lowering those limits is not an
+     option: they also cap cutting, and the material file asks for up to 3000
+     mm/min. So each G0 is rewritten as G1 F1000, the same trick park.ngc uses
+     and the same 1000 mm/min as the jog rate in [DISPLAY]. Cutting moves are
+     untouched. The feed override slider scales travel now that it is a feed
+     move, as it does any G1.
+
+     This only covers travel that comes through the filter, which is the XY
+     traverse between cuts and the initial move to safe Z. The Z drop to pierce
+     height is not a G0 at all - plasmac owns it, at Setup Feed Rate - and the
+     GUI's own framing and "go to origin" buttons issue G0 by MDI, bypassing
+     the filter, so those still run at the joint limits.
+
+  2. "o<park> call" is inserted ahead of the program end code, so a completed
+     job finishes with the torch lifted to machine Z0 and the gantry back at
+     X0 Y0 - the same thing the PARK user button does.
+
+Both run in write_gcode() rather than the per-line custom_post_parse() hook
+because write_gcode() sees the whole output. For the park call that covers
+every way a program can end:
 
   - M02 / M30 / %          the normal cases
   - the M02 that pierce-only mode appends after process_file()
@@ -20,6 +37,23 @@ output. That covers every way a program can end:
 Only completed programs park. Aborting or pausing a job leaves the torch where
 it stopped, which is what you want when recovering a cut.
 
+For the travel rewrite it means the parsed output is what gets rewritten, and
+that output is well behaved in two ways this relies on: parse_code() prefixes a
+bare coordinate line with the modal G code, so every motion line carries an
+explicit G00 or G01 and no modal state has to be tracked here; and G codes are
+zero padded. The one rapid that skips parse_code() is set_first_move()'s
+"G53 G0 Z[...]", so both spellings are matched. A gcodeList entry can also hold
+embedded newlines, so entries are split before being examined.
+
+Modal feed is restored after a travel move, lazily: the saved F word is
+re-emitted just before the next move that would otherwise inherit F1000, and
+only when that move does not set its own feed. Without it, a cut following a
+travel would run at 1000 mm/min instead of the material's cut speed, since
+CUT_SPEED reaches the g-code as a modal F word
+(F#<_hal[plasmac.cut-feed-rate]>) that a G1 travel move would consume. Files
+already filtered once are passed through unchanged by process_file(), and a
+rewritten line has no G0 left to match, so both passes are idempotent.
+
 Two scoping traps, because the filter exec()s this file inside
 Filter.__init__ rather than importing it:
 
@@ -28,29 +62,90 @@ Filter.__init__ rather than importing it:
   - Names defined at the top of this file also land in that local scope, so the
     patched method cannot see them at call time -- its __globals__ is
     qtplasmac_gcode's, which knows nothing about this file. Everything the
-    method needs is therefore local to it: the helper is nested, and the
-    original method is captured as a default argument (evaluated at def time,
-    while Filter is still in scope).
+    method needs is therefore local to it: helpers and constants are nested,
+    and the original method is captured as a default argument (evaluated at def
+    time, while Filter is still in scope).
 """
 
 
-def _park_before_program_end(self, _original=Filter.write_gcode):  # noqa: F821
+def _slow_travel_and_park(self, _original=Filter.write_gcode):  # noqa: F821
+    import re
+
+    # Travel feed, mm/min. Kept equal to the jog rate in [DISPLAY] and to
+    # park.ngc's park_feed, so every non-cutting move on this machine runs at
+    # the same speed.
+    travel_feed = 1000
+
     park_call = 'o<park> call (park at end of job)'
 
-    def program_end(line):
-        """True if this line ends the program. G and M codes are already upper
-        case and zero padded by the time they reach write_gcode()."""
-        code = line.strip()
-        return code[:3] in ('M02', 'M30') or code[:1] == '%'
+    # A G code at a code position: not part of a longer number and not inside a
+    # parameter name. G0 and G00 are rapids; G1 G2 G3 and their padded forms
+    # move at the modal feed.
+    rapid_code = re.compile(r'(?<![A-Z0-9_.<#])G0*0(?![0-9])')
+    feed_code = re.compile(r'(?<![A-Z0-9_.<#])G0*[123](?![0-9])')
+    # An F word: a literal, a parameter such as F#<_hal[plasmac.cut-feed-rate]>,
+    # or a bracketed expression.
+    feed_word = re.compile(r'F\s*(?:#<[^>]*>|\[[^\]]*\]|[0-9.]+)')
 
-    if not any('o<park>' in line.lower() for line in self.gcodeList):
-        for index in range(len(self.gcodeList) - 1, -1, -1):
-            if program_end(self.gcodeList[index]):
-                self.gcodeList.insert(index, park_call)
+    def split_comment(line):
+        """Split a line into its code and its trailing comment, at whichever
+        comment character comes first."""
+        cut = len(line)
+        for tag in ';(':
+            found = line.find(tag)
+            if found != -1:
+                cut = min(cut, found)
+        return line[:cut], line[cut:]
+
+    def slow_travel(lines):
+        out = []
+        last_feed = None
+        restore_pending = False
+        for line in lines:
+            code, comment = split_comment(line)
+            feed = feed_word.search(code)
+            if feed:
+                # The program sets the modal feed itself here, so nothing is
+                # owed even if a travel move came before it.
+                last_feed = feed.group(0)
+                restore_pending = False
+            moves = any(axis in code for axis in 'XYZABCUVW')
+            if rapid_code.search(code) and moves:
+                code = rapid_code.sub('G01', code, count=1)
+                code = feed_word.sub('', code).rstrip()
+                gap = ' ' if comment else ''
+                out.append(f'{code} F{travel_feed}{gap}{comment}')
+                restore_pending = last_feed is not None
+                continue
+            if restore_pending and feed_code.search(code) and moves:
+                if not feed:
+                    out.append(f'{last_feed} (restore feed after travel)')
+                restore_pending = False
+            out.append(line)
+        return out
+
+    def append_park(lines):
+        def program_end(line):
+            """True if this line ends the program. G and M codes are already
+            upper case and zero padded by the time they reach write_gcode()."""
+            code = line.strip()
+            return code[:3] in ('M02', 'M30') or code[:1] == '%'
+
+        if any('o<park>' in line.lower() for line in lines):
+            return lines
+        for index in range(len(lines) - 1, -1, -1):
+            if program_end(lines[index]):
+                lines.insert(index, park_call)
                 break
         else:
-            self.gcodeList.append(park_call)
+            lines.append(park_call)
+        return lines
+
+    lines = []
+    for entry in self.gcodeList:
+        lines.extend(entry.split('\n'))
+    self.gcodeList = append_park(slow_travel(lines))
     _original(self)
 
 
-Filter.write_gcode = _park_before_program_end  # noqa: F821
+Filter.write_gcode = _slow_travel_and_park  # noqa: F821

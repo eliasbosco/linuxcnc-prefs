@@ -1,0 +1,10 @@
+; Return the machine to its home corner.
+; Z lifts fully first (machine Z0 is the top of travel), then X/Y move.
+; G53 = machine coordinates, so work offsets (G54 etc.) are ignored.
+;
+; Called by the PARK user button, and appended to the end of every job by
+; custom_filter.py.
+o<park> sub
+G53 G0 Z0
+G53 G0 X0 Y0
+o<park> endsub

@@ -7,3 +7,5 @@ cnc_plasma_cutter/*.ini.tmp
 cnc_plasma_cutter/*.prehome
 cnc_plasma_cutter/*.preyfix
 cnc_plasma_cutter/*.prepark
+cnc_plasma_cutter/dxf2ngc.log
+cnc_plasma_cutter/set_zero_here.log

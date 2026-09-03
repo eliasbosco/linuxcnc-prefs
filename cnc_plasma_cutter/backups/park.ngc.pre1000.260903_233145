@@ -5,13 +5,13 @@
 ; Called by the PARK user button, and appended to the end of every job by
 ; custom_filter.py.
 ;
-; G1 F1000, not G0: a rapid runs at each joint's own MAX_VELOCITY (3000 mm/min
+; G1 F1150, not G0: a rapid runs at each joint's own MAX_VELOCITY (3000 mm/min
 ; on Y and Z), which is faster than this machine is wanted to park at. A feed
-; move holds the whole park to the same 1000 mm/min as the jog rate. The feed
+; move holds the whole park to the same 1150 mm/min as the jog rate. The feed
 ; override slider still scales it, as it does any G1.
 o<park> sub
 
-  #<park_feed> = 1000
+  #<park_feed> = 1150
   #<entry_feed> = #<_feed>
 
   G53 G1 Z0 F#<park_feed>
