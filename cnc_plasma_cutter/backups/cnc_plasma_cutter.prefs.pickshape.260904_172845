@@ -61,8 +61,8 @@ Custom style = None
 3 Code = single-cut
 4 Name = NORMAL\CUT
 4 Code = cut-type
-5 Name = PICK\SHAPE
-5 Code = %/home/pi/linuxcnc/configs/cnc_plasma_cutter/pick_shape.py
+5 Name = TORCH\PULSE
+5 Code = torch-pulse 0.5
 6 Name = FRAMING
 6 Code = framing
 7 Name = RESUME\CUT
@@ -122,14 +122,14 @@ X axis = 0.0
 Y axis = 0.0
 
 [STATISTICS]
-Cut time = 861.33
-Paused time = 7751.73
-Probe time = 1886.96
-Program run time = 13094.98
-Torch on time = 1300.8
-Rapid time = 837.66
-Cut length = 19814.0
-Pierce count = 201
+Cut time = 677.58
+Paused time = 7627.18
+Probe time = 1867.09
+Program run time = 12337.74
+Torch on time = 1112.61
+Rapid time = 757.18
+Cut length = 17081.22
+Pierce count = 198
 
 [LASER_OFFSET]
 X axis = 0.0

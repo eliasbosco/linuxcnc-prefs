@@ -1,10 +1,36 @@
 """
-Hold non-cutting travel to 1000 mm/min, and append the park move to every job.
+Canonicalise axis words, hold non-cutting travel to 1000 mm/min, and append the
+park move to every job.
 
 QtPlasmaC runs every loaded file through /usr/bin/qtplasmac_gcode
 ([FILTER] ngc in the INI). That filter looks for custom_filter.py beside the
 INI and, if present, exec()s it before processing the file. We use that hook
-twice, both in write_gcode(), the filter's final step:
+three times, all in write_gcode(), the filter's final step:
+
+  0. "X 598.409" becomes "X598.409". LinuxCNC does not care - whitespace inside
+     a word is legal g-code and the interpreter reads either spelling - but
+     QtPlasmaC's own RUN FROM LINE does. It finds the last commanded position
+     with plasmac/run_from_line.py's get_rfl_pos(), which walks the line
+     character by character and gives up the moment the character after the
+     axis letter is not part of a number:
+
+         get_rfl_pos("G01 X598.409 Y73.409 F1000", "", "X") -> "598.409"
+         get_rfl_pos("G01 X 598.409 Y  73.409 F1000", "", "X") -> ""
+
+     An empty answer is not reported as an error. run_from_line_set() simply
+     omits the "G00 X.. Y.." that positions the torch at the start of the
+     resumed cut, so the generated program fires M03 wherever the machine
+     happens to be standing and then arcs away from there. A leadin cannot be
+     calculated either - float("") raises, which is the only symptom that ever
+     reaches the operator.
+
+     dxf2ngc.py column-aligns its output ("X 598.409", "I   1.591"), and
+     qtplasmac_gcode preserves that spacing, so every DXF-derived job on this
+     machine hit this. The alignment is worth keeping in the .ngc that is
+     written to disk and read by a human; it is not worth keeping in the
+     filtered copy that only the interpreter and run_from_line ever see. So the
+     space between an axis letter and its value is removed here, which fixes
+     the GUI's RUN FROM LINE button and resume_cut.py at the same time.
 
   1. Rapids become feed moves at 1000 mm/min. LinuxCNC has no rapid feed rate
      setting - G0 runs at whatever the participating joints allow, which here
@@ -25,8 +51,8 @@ twice, both in write_gcode(), the filter's final step:
      job finishes with the torch lifted to machine Z0 and the gantry back at
      X0 Y0 - the same thing the PARK user button does.
 
-Both run in write_gcode() rather than the per-line custom_post_parse() hook
-because write_gcode() sees the whole output. For the park call that covers
+All three run in write_gcode() rather than the per-line custom_post_parse()
+hook because write_gcode() sees the whole output. For the park call that covers
 every way a program can end:
 
   - M02 / M30 / %          the normal cases
@@ -86,6 +112,14 @@ def _slow_travel_and_park(self, _original=Filter.write_gcode):  # noqa: F821
     # An F word: a literal, a parameter such as F#<_hal[plasmac.cut-feed-rate]>,
     # or a bracketed expression.
     feed_word = re.compile(r'F\s*(?:#<[^>]*>|\[[^\]]*\]|[0-9.]+)')
+    # Whitespace between a word letter and the number that follows it. The
+    # lookahead is deliberately limited to the start of a plain number: a value
+    # that begins with '#' or '[' is a parameter or an expression, which
+    # get_rfl_pos() reads correctly with or without the space, and joining
+    # those up would gain nothing while touching more lines than necessary.
+    # '$' is excluded for the same reason, which is what keeps plasmac's
+    # "M03 $0 S1" tool syntax exactly as it was.
+    padded_word = re.compile(r'(?<![A-Z0-9_.<#])([A-Z])[ \t]+(?=[-+.0-9])')
 
     def split_comment(line):
         """Split a line into its code and its trailing comment, at whichever
@@ -96,6 +130,19 @@ def _slow_travel_and_park(self, _original=Filter.write_gcode):  # noqa: F821
             if found != -1:
                 cut = min(cut, found)
         return line[:cut], line[cut:]
+
+    def canonical_words(lines):
+        """Close up "X 598.409" to "X598.409", in the code half of each line.
+
+        Only the code half: a comment such as "(* SHAPE Nr: 9 *)" is left
+        alone, and so is anything after a ';'.
+        """
+        out = []
+        for line in lines:
+            code, comment = split_comment(line)
+            fixed = padded_word.sub(r'\1', code)
+            out.append(fixed + comment if fixed != code else line)
+        return out
 
     def slow_travel(lines):
         out = []
@@ -144,7 +191,7 @@ def _slow_travel_and_park(self, _original=Filter.write_gcode):  # noqa: F821
     lines = []
     for entry in self.gcodeList:
         lines.extend(entry.split('\n'))
-    self.gcodeList = append_park(slow_travel(lines))
+    self.gcodeList = append_park(slow_travel(canonical_words(lines)))
     _original(self)
 
 

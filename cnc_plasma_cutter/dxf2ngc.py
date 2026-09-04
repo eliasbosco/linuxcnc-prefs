@@ -102,7 +102,14 @@ PLASMA_POSTPRO = {
         'repeat_drill_move': 'False',
         'code_begin_units_mm': 'G21 (metric)',
         'code_begin_prog_abs': 'G90 (absolute)',
-        'code_begin': 'G64 P0.25 (path tolerance) G17 G40 G49 G80 G91.1 G94 G97',
+        # The comment goes at the END. qtplasmac_gcode's illegal_character()
+        # rejects any line that contains a '(' and does not end in ')' - a
+        # mid-line comment with code after it counts - and its answer is to
+        # comment the whole line out and append "|comment is missing a
+        # parenthesis". That silently drops G64 P0.25, G17 and G91.1 (the
+        # rest are in [RS274NGC] RS274NGC_STARTUP_CODE), and the '|' it leaves
+        # behind is not legal g-code if anything ever un-comments the line.
+        'code_begin': 'G64 P0.25 G17 G40 G49 G80 G91.1 G94 G97 (path tolerance and modal defaults)',
         'code_end': 'M2',
     },
     'Program': {

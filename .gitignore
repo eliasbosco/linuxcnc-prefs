@@ -9,3 +9,7 @@ cnc_plasma_cutter/*.preyfix
 cnc_plasma_cutter/*.prepark
 cnc_plasma_cutter/dxf2ngc.log
 cnc_plasma_cutter/set_zero_here.log
+cnc_plasma_cutter/resume/
+cnc_plasma_cutter/cut_recorder.log
+cnc_plasma_cutter/resume_cut.log
+cnc_plasma_cutter/pick_shape.log

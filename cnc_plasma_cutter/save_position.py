@@ -14,6 +14,33 @@ Can also be run by hand from the config directory for debugging.
 HOME and HOME_OFFSET are always written to the SAME value. If they differ,
 LinuxCNC rapids the joint to HOME immediately after homing.
 
+WHY IT ALSO SAVES WHILE THE MACHINE IS MOVING
+---------------------------------------------
+It used to save only once the machine had been still for IDLE_POLLS, to spare
+the SD card. That is fine for a normal power-off, and useless for the case that
+actually hurts: the power going out in the middle of a cut. A job never stands
+still, so nothing was ever saved during one, and the last saved position was
+from before the cut started - usually with Z at 0, the top of travel.
+
+That combination is the dangerous one. [AXIS_Z] MAX_LIMIT is 0, so a machine
+that believes Z is 0 while the torch is actually sitting on the plate cannot
+retract at all: Z+ is against the soft limit, PARK's "G53 G1 Z0" is a no-op,
+and the X/Y half of PARK then drags the torch across the material. So while a
+program is running the position is saved every MOVING_WRITE_INTERVAL as well,
+which leaves the INI holding roughly where the machine really stopped. HOME ALL
+after the outage then reports a Z of -38 or so, Z can be jogged back up, and
+PARK is safe again.
+
+Writes are also fsynced now, file and directory both. Without that the saved
+position could sit in the page cache for the ~30 s until writeback and be lost
+to the very power cut it exists for - including the idle saves, which were
+never as safe as they looked.
+
+Where in the PROGRAM the job stopped is not recorded here; cut_recorder.py owns
+that, and resume_cut.py rebuilds the remainder of the job from it. The two
+daemons are deliberately separate - this one owns the INI, that one owns the
+resume/ directory - so neither can corrupt the other's file.
+
 Progress and errors go to save_position.log beside the INI, because anything
 printed to stdout is lost when LinuxCNC is started from a desktop icon.
 
@@ -29,10 +56,19 @@ import time
 
 import linuxcnc
 
-POLL_SECONDS = 1.0
-IDLE_POLLS = 3              # must be still this many polls before saving
+# Halved from 1.0 s so MOVING_WRITE_INTERVAL below is actually reachable: the
+# write interval can never be shorter than the poll interval.
+POLL_SECONDS = 0.5
+IDLE_POLLS = 3              # must be still this many polls (1.5 s) before saving
 MIN_CHANGE = 0.02           # mm; ignore noise below this
-MIN_WRITE_INTERVAL = 5.0    # seconds; limit SD card writes
+MIN_WRITE_INTERVAL = 5.0    # seconds; limit SD card writes when idle
+# Seconds between saves while a program is running. This is the worst-case
+# position error left behind by a power cut: at the 1000 mm/min this machine
+# travels at, and the 1200 mm/min plasmac drives Z at, half a second is about
+# 10 mm. Close enough to retract the torch and to keep the soft limits honest,
+# which is all the INI position is for.
+MOVING_WRITE_INTERVAL = 0.5
+RUNNING_LOG_INTERVAL = 60.0  # seconds; keep a running job from burying the log
 GIVE_UP_AFTER = 60          # consecutive failed polls before deciding we are done
 
 LOG_LINES_KEPT = 200
@@ -85,10 +121,33 @@ def read_positions(stat):
     return [stat.joint_actual_position[n] for n in range(count)]
 
 
+def program_running(stat):
+    """True while a job is executing, so saves keep happening as it moves.
+
+    AUTO only. Probing, framing, torch pulse and the user buttons all run as
+    MDI and stand still often enough for the idle path to catch them.
+    """
+    return (stat.task_mode == linuxcnc.MODE_AUTO
+            and stat.interp_state != linuxcnc.INTERP_IDLE)
+
+
 def same(a, b, tol):
     if a is None or b is None or len(a) != len(b):
         return False
     return all(abs(x - y) <= tol for x, y in zip(a, b))
+
+
+def fsync_dir(path):
+    """Force a rename to reach the card, not just the new file's data.
+
+    Without this the directory entry can still point at the old inode after a
+    power cut even though the new file's contents were safely written.
+    """
+    fd = os.open(path or '.', os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
 
 
 def write_ini(path, positions):
@@ -121,7 +180,10 @@ def write_ini(path, positions):
     tmp = path + '.tmp'
     with open(tmp, 'w') as f:
         f.writelines(out)
+        f.flush()
+        os.fsync(f.fileno())   # on the card, not just in the page cache
     os.replace(tmp, path)      # atomic: a crash mid-write cannot truncate the INI
+    fsync_dir(os.path.dirname(os.path.abspath(path)))
 
 
 def main():
@@ -142,6 +204,7 @@ def main():
     failures = 0
     announced_homed = False
     announced_unhomed = False
+    last_running_log = 0.0
 
     while True:
         time.sleep(POLL_SECONDS)
@@ -190,11 +253,16 @@ def main():
         still = still + 1 if same(current, previous, 0.001) else 0
         previous = current
 
-        if still < IDLE_POLLS:
+        # While a program runs, save on a timer instead of waiting for the
+        # machine to stand still - it never will, and that is precisely when
+        # the position is worth having on disk.
+        running = program_running(stat)
+        if not running and still < IDLE_POLLS:
             continue
         if same(current, saved, MIN_CHANGE):
             continue
-        if time.time() - last_write < MIN_WRITE_INTERVAL:
+        interval = MOVING_WRITE_INTERVAL if running else MIN_WRITE_INTERVAL
+        if time.time() - last_write < interval:
             continue
 
         try:
@@ -205,7 +273,13 @@ def main():
 
         saved = current
         last_write = time.time()
-        log('saved ' + ' '.join('%.3f' % p for p in current))
+        # Two saves a second would bury the log, and the INI itself is the
+        # record that matters, so a running job only gets an occasional note.
+        if not running:
+            log('saved ' + ' '.join('%.3f' % p for p in current))
+        elif time.time() - last_running_log > RUNNING_LOG_INTERVAL:
+            last_running_log = time.time()
+            log('running, saved ' + ' '.join('%.3f' % p for p in current))
 
 
 if __name__ == '__main__':

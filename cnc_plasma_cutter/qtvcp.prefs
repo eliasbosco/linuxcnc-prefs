@@ -17,7 +17,7 @@ MachineLogDialog_sound_type = READY
 
 [BOOK_KEEPING]
 last_loaded_directory = /home/pi/cuts
-RecentPath_0 = /home/pi/cuts/CNC Bed Base 900mm (1).gcode
+RecentPath_0 = /home/pi/cuts/RESUME_LAST_CUT.ngc
 style_QSS_Path = DEFAULT
 
 [SCREEN_OPTIONS]
