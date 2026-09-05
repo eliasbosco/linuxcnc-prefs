@@ -28,7 +28,7 @@ The unmodified output for a plate with one hole was:
     G1 Z  -1.500            <- plunges the torch into the plate
     G1 Z  -3.000            <- ...and again, it does two depth passes
 
-So this script owns four jobs:
+So this script owns five jobs:
 
   1. It installs a plasma postprocessor into ~/.config/dxf2gcode. That path is
      hardcoded in /usr/bin/dxf2gcode (g.folder), so the config CANNOT live in
@@ -51,7 +51,13 @@ So this script owns four jobs:
      DXF job would be the only kind whose travel still runs at the joint
      limits, which is 1500 mm/min on X and 6000 on Y.
 
-  4. It REFUSES to emit G-code containing a Z move, a tool change or a
+  4. It forces every closed shape to cut in one winding direction,
+     CUT_DIRECTION below. dxf2gcode preserves whatever direction the DXF
+     happened to carry, so an untouched job cuts some shapes one way and some
+     the other, and the bevelled side of the kerf changes from shape to shape.
+     Reversal keeps the pierce point exactly where it was.
+
+  5. It REFUSES to emit G-code containing a Z move, a tool change or a
      spindle/coolant word. That check is the point of this script, not
      decoration - see the list above for what it is guarding against.
 
@@ -69,6 +75,7 @@ with Popen and never reads the pipe - so progress and errors also go to
 dxf2ngc.log beside this script, and to a dialog box.
 """
 
+import math
 import os
 import re
 import subprocess
@@ -140,6 +147,29 @@ PLASMA_DEPTHS = {
 # park_feed and custom_filter.py's travel_feed, so every non-cutting move on
 # this machine runs at the same speed.
 TRAVEL_FEED = 1000
+
+# Cut direction for every closed shape. dxf2gcode emits whatever winding the
+# DXF happens to carry - for most CAD output that is clockwise - so shapes come
+# out in a mix of directions. Forcing one direction makes the bevel fall on the
+# same side of the kerf on every shape in the job.
+#
+#   'ccw'  every closed shape counterclockwise
+#   'cw'   every closed shape clockwise
+#   None   leave dxf2gcode's winding alone
+#
+# ON THE CONVENTION: a plasma arc swirls, so one side of the kerf comes out
+# square and the other bevelled. For a clockwise-swirl torch the square side is
+# on the RIGHT of the direction of travel, so the usual production convention
+# is outside profiles CLOCKWISE and holes COUNTERCLOCKWISE - both of which put
+# the part on the right. A single direction everywhere trades that away for
+# consistency, which is what was asked for here. Since this script emits no
+# kerf compensation (see the module docstring), direction only ever changes
+# which side of the cut the bevel lands on - never the part dimensions.
+CUT_DIRECTION = 'ccw'
+
+# mm. Arc radius agreement and loop closure. dxf2gcode prints 3 decimals, so
+# closure is exact and radii agree to within half a thousandth.
+GEOM_TOL = 1e-3
 
 # Inserted before the first motion line. G21/G90/G64 already come from
 # code_begin above; these are the plasma-specific additions.
@@ -312,6 +342,203 @@ def slow_travel(text):
                 out.append('%s (restore feed after travel)' % last_feed)
             restore_pending = False
         out.append(line)
+    return '\n'.join(out) + '\n'
+
+
+WORD_RE = re.compile(r'([XYIJKRF])\s*(-?\d*\.?\d+)', re.I)
+GMOVE_RE = re.compile(r'(?<![A-Z0-9_.<#])G0*([0123])(?![0-9])')
+TORCH_ON_RE = re.compile(r'\bM0*3\b')
+TORCH_OFF_RE = re.compile(r'\bM0*5\b')
+
+
+def _code_of(line):
+    """The line with any trailing comment removed. dxf2gcode uses (...), but
+    ; is legal too."""
+    cut = len(line)
+    for tag in ';(':
+        found = line.find(tag)
+        if found != -1:
+            cut = min(cut, found)
+    return line[:cut]
+
+
+def _words(code):
+    return dict((m.group(1).upper(), float(m.group(2)))
+                for m in WORD_RE.finditer(code))
+
+
+def _endpoint(code, pos):
+    w = _words(code)
+    return (w.get('X', pos[0]), w.get('Y', pos[1]))
+
+
+def _num(letter, value):
+    """dxf2gcode's own column style: the letter, then the number in 8 columns."""
+    if abs(value) < 5e-4:
+        value = 0.0                      # otherwise this prints as -0.000
+    return '%s%8.3f' % (letter, value)
+
+
+def _parse_cut(body, start):
+    """The motion lines between torch-on and torch-off -> a segment list.
+
+    Returns None if the block holds anything this pass will not reverse
+    safely: a per-move F word, an R-format arc, a helical or rotary word, an
+    arc whose endpoints disagree on the radius. The caller then leaves that
+    block exactly as dxf2gcode wrote it.
+    """
+    segments = []
+    pos = start
+    for line in body:
+        code = _code_of(line)
+        if not code.strip():
+            continue
+        g = GMOVE_RE.search(code)
+        if not g:
+            return None                  # a non-motion word inside the cut
+        rest = GMOVE_RE.sub(' ', code)
+        if set(re.findall(r'[A-Za-z]', rest)) - set('XYIJxyij'):
+            return None                  # F, R, K, Z, A-C ...
+        w = _words(code)
+        end = (w.get('X', pos[0]), w.get('Y', pos[1]))
+        if g.group(1) in '01':
+            segments.append({'kind': 'line', 'cw': False,
+                             'start': pos, 'end': end, 'center': None})
+        else:
+            if 'I' not in w and 'J' not in w:
+                return None              # R-format arc
+            centre = (pos[0] + w.get('I', 0.0), pos[1] + w.get('J', 0.0))
+            r1 = math.hypot(pos[0] - centre[0], pos[1] - centre[1])
+            r2 = math.hypot(end[0] - centre[0], end[1] - centre[1])
+            if r1 < GEOM_TOL or abs(r1 - r2) > GEOM_TOL:
+                return None
+            segments.append({'kind': 'arc', 'cw': g.group(1) == '2',
+                             'start': pos, 'end': end, 'center': centre})
+        pos = end
+    return segments or None
+
+
+def _signed_area(segments):
+    """Exact signed area of a closed path: 1/2 * contour integral of
+    (x dy - y dx). Positive is counterclockwise.
+
+    Arcs are integrated exactly rather than treated as their chords, because
+    chording gets the answer wrong for the shapes that matter most here - a
+    circle emitted as two half arcs chords down to a zero-area line, and a
+    slot's winding is carried entirely by its end arcs.
+    """
+    total = 0.0
+    for seg in segments:
+        (x1, y1), (x2, y2) = seg['start'], seg['end']
+        if seg['kind'] == 'line':
+            total += 0.5 * (x1 * y2 - x2 * y1)
+            continue
+        cx, cy = seg['center']
+        r = math.hypot(x1 - cx, y1 - cy)
+        a1 = math.atan2(y1 - cy, x1 - cx)
+        a2 = math.atan2(y2 - cy, x2 - cx)
+        if math.hypot(x2 - x1, y2 - y1) < GEOM_TOL:
+            sweep = -2 * math.pi if seg['cw'] else 2 * math.pi   # full circle
+        elif seg['cw']:
+            sweep = a2 - a1
+            while sweep > 0:
+                sweep -= 2 * math.pi
+        else:
+            sweep = a2 - a1
+            while sweep < 0:
+                sweep += 2 * math.pi
+        total += 0.5 * (cx * r * (math.sin(a2) - math.sin(a1))
+                        - cy * r * (math.cos(a2) - math.cos(a1))
+                        + r * r * sweep)
+    return total
+
+
+def _reverse(segments):
+    """Walk the segments backwards. Each one keeps its centre and swaps its
+    endpoints; G2 becomes G3 and vice versa; I/J are re-referenced to the new
+    start point, since G91.1 makes them relative to wherever the move begins.
+
+    The path is closed, so the last point of the reversed path is the first
+    point of the original - the G0 that pierces the shape does not move.
+    """
+    out = []
+    for seg in reversed(segments):
+        here, dest = seg['end'], seg['start']
+        if seg['kind'] == 'line':
+            out.append('G1 %s %s' % (_num('X', dest[0]), _num('Y', dest[1])))
+        else:
+            cx, cy = seg['center']
+            out.append('%s %s %s %s %s'
+                       % ('G3' if seg['cw'] else 'G2',
+                          _num('X', dest[0]), _num('Y', dest[1]),
+                          _num('I', cx - here[0]), _num('J', cy - here[1])))
+    return out
+
+
+def force_direction(text, want=CUT_DIRECTION):
+    """Rewrite every closed cut so it runs in the CUT_DIRECTION winding.
+
+    A cut is everything between a torch-on (M3 $0) and the next torch-off
+    (M5 $0). Open contours, degenerate ones and blocks holding anything this
+    pass does not understand are left untouched - a shape that is not a closed
+    loop has no winding to speak of.
+
+    This runs on raw dxf2gcode output, before slow_travel() turns the entry
+    rapids into feed moves, so the block boundaries are still unambiguous.
+    """
+    if not want:
+        return text
+
+    lines = text.splitlines()
+    out = []
+    pos = (0.0, 0.0)
+    flipped = kept = untouched = 0
+    i = 0
+    while i < len(lines):
+        code = _code_of(lines[i])
+        if not TORCH_ON_RE.search(code):
+            if GMOVE_RE.search(code):
+                pos = _endpoint(code, pos)
+            out.append(lines[i])
+            i += 1
+            continue
+
+        j = i + 1
+        while j < len(lines) and not TORCH_OFF_RE.search(_code_of(lines[j])):
+            j += 1
+        body = lines[i + 1:j]
+        out.append(lines[i])
+
+        after = pos
+        for b in body:
+            bc = _code_of(b)
+            if GMOVE_RE.search(bc):
+                after = _endpoint(bc, after)
+
+        segments = _parse_cut(body, pos)
+        if segments is None:
+            untouched += 1
+            out.extend(body)
+        else:
+            closed = math.hypot(
+                segments[-1]['end'][0] - segments[0]['start'][0],
+                segments[-1]['end'][1] - segments[0]['start'][1]) <= GEOM_TOL
+            area = _signed_area(segments) if closed else 0.0
+            if not closed or abs(area) < GEOM_TOL:
+                untouched += 1
+                out.extend(body)
+            elif (area > 0) == (want == 'ccw'):
+                kept += 1
+                out.extend(body)
+            else:
+                flipped += 1
+                out.extend(_reverse(segments))
+
+        pos = after
+        i = j
+
+    log('direction (%s): %d shape(s) reversed, %d already correct, %d left '
+        'alone' % (want, flipped, kept, untouched))
     return '\n'.join(out) + '\n'
 
 
@@ -501,7 +728,8 @@ def convert(dxf_path):
         with open(out) as f:
             text = f.read()
 
-    text = add_park(slow_travel(add_plasma_header(text)))
+    text = add_park(slow_travel(add_plasma_header(
+        force_direction(text))))
 
     problems = validate(text)
     if problems:
