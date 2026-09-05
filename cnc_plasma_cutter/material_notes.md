@@ -42,7 +42,10 @@ deceleration), and those amps are **extrapolated, not chart values**.
 If thin sheet still cuts poorly, the real fix is FineCut consumables, which
 are designed for exactly this case.
 
-## Cut height: 2.5 mm everywhere (changed 2026-08-23)
+## Cut height: 2.5 mm everywhere (changed 2026-08-23) - SUPERSEDED
+
+Twice over: by the 5.3 mm anchor of 2026-09-05, then by the float-travel fix
+later the same day that made heights physical. Cut height is now 2.0 mm real.
 
 Went 1.0 -> 2.0 -> 2.5 mm across 2026-08-23, on every entry. The Hypertherm
 charts specify 3.2 mm, which is still **not** copied here - that figure is
@@ -56,7 +59,10 @@ the 1.5 mm rise is roughly +15 V. Nothing is broken today because
 CUT_VOLTS entirely. Re-measure every entry with `./thcad_arc_log.sh` before you
 ever turn auto-volts off, or the THC will drive the torch about 1 mm low.
 
-## CUT_VOLTS - anchored on one real measurement
+## CUT_VOLTS - anchored on one real measurement - ANCHOR RETRACTED
+
+The measurement below predates the real float switch by a day; see the final
+2026-09-05 entry. Read this section as history, not as a calibration.
 
 Only one point is measured: **4 mm at 40 A read 126.1 V** (thcad_arc_log.sh,
 2026-08-13 17:23, 41 samples above 100 V, range 114-132 V while the cut
@@ -83,7 +89,9 @@ cuts a narrower kerf than Hypertherm's. Kerf directly sets part dimensions
 via the CAM offset, so measure it: cut a 100 mm square, measure it, and the
 difference from 100 is the kerf error.
 
-## Pierce heights: 4.0 mm everywhere (changed 2026-08-23)
+## Pierce heights: 4.0 mm everywhere (changed 2026-08-23) - SUPERSEDED
+
+See both 2026-09-05 entries. Pierce height is now 2.5 mm real.
 
 Chart uses 120% of cut height (200% for 16 mm+), which even at the new 2.5 mm
 cut height would be 3.0 mm - too low to keep blowback off the shield. A flat
@@ -249,3 +257,151 @@ derived from it.
 Next: test MS 4 mm near 2280, then cut test pieces in 8 and 12 mm and adjust by
 dross - a fine bead that snaps off is right, thick clingy dross underneath means
 too slow, a cut that trails or does not break through means too fast.
+
+### 2026-09-05 - anchor re-tuned to 950 mm/min, heights flattened to the anchor
+
+MS 6 mm was re-tuned at the machine to **cut height 5.3 mm, pierce height
+5.3 mm, 950 mm/min**. The whole table was then rebuilt on that anchor.
+
+**Heights are now flat at 5.3 / 5.3 on all 20 entries**, superseding the
+2.5 mm cut / 4.0 mm pierce of 2026-08-23. Note this makes pierce height equal
+to cut height everywhere - the extra pierce standoff that the 4.0 mm flat was
+introduced to provide is gone. See the warning at the end of this entry.
+
+Every CUT_VOLTS is stale again, and more so than before: the 2.8 mm rise from
+2.5 to 5.3 mm is roughly +28 V at 0.1 mm/V. Still inert while
+`Use auto volts = True`. Do not disable auto-volts without re-measuring.
+
+**CUT_SPEED** - the anchor moved 1000 -> 950, so the chart-derived speeds took
+an additional x0.95. Full factor chain from chart is now 0.625 x 0.8 x 0.95 =
+**0.475**.
+
+| # | material | was | now | basis |
+|---|----------|-----|-----|-------|
+| 6 | MS 8 mm  | 776 | 737 | x0.95 |
+| 7 | MS 10 mm | 520 | 494 | x0.95 |
+| 8 | MS 12 mm | 420 | 399 | x0.95 |
+| 9 | MS 16 mm | 280 | 266 | x0.95 |
+| 10| MS 20 mm | 192 | 182 | x0.95 |
+| 17| AL 6 mm  |1000 | 950 | = MS 6 mm, per the aluminium rule |
+| 18| AL 8 mm  | 776 | 737 | = MS 8 mm |
+| 19| AL 10 mm | 520 | 494 | = MS 10 mm |
+
+Entries 0-4 and 11-16 were **not** scaled. They sit at the 1000 mm/min X-screw
+ceiling, not at cutting speeds, for the reason given in the 2026-08-23 entry.
+AL 6 mm did move, because it is not ceiling-limited - it tracks the MS 6 mm
+anchor by the aluminium derivation rule, and only looked like a ceiling value
+before because the anchor happened to equal the ceiling.
+
+**PIERCE_DELAY** - now a clean **0.1 s per mm** off the anchor (6 mm = 0.6 s),
+which fixes the non-monotonic artefacts flagged in the aluminium section:
+
+| # | material | was | now |
+|---|----------|-----|-----|
+| 6 | MS 8 mm  | 0.5 | 0.8 |
+| 7 | MS 10 mm | 0.7 | 1.0 |
+| 9 | MS 16 mm | 2.0 | **1.6** |
+| 11| AL 0.5 mm| 0.1 | 0.05 |
+
+**KERF_WIDTH** - kerf did not move at the anchor (still 1.7 at 6 mm), so
+proportional scaling leaves the ramp alone. Literal proportionality was **not**
+applied: 1.7 at 6 mm scaled linearly would give 0.28 mm at 1 mm and 5.7 mm at
+20 mm, which is not how kerf behaves. The existing sub-linear ramp was kept and
+only its one flat spot corrected - **MS 8 mm 1.7 -> 1.8**, which had been equal
+to the 6 mm value. AL kerf still follows MS + 0.1 and is unchanged throughout.
+
+CUT_AMPS and CUT_VOLTS were deliberately left alone. Both are inert here - amps
+is display-only (the real current is the HBC65 front dial) and volts is ignored
+while auto-volts is on.
+
+Entry 0 "Basic default Material" got the heights but not the other three: it
+has no thickness, so there is nothing to scale proportionally.
+
+**Two things to watch on the next cuts:**
+
+1. **Pierce height now equals cut height on every entry.** Every pierce happens
+   at the cutting standoff with no extra clearance. This is what the flat
+   4.0 mm pierce existed to prevent - blowback onto the shield. Watch the
+   consumables on 12-20 mm especially, where pierce is already marginal.
+2. **MS 16 mm pierce delay dropped 2.0 -> 1.6 s.** That entry is named "pierce
+   limit" for a reason and the 2.0 was probably deliberate padding. If motion
+   starts before breakthrough, put it back to 2.0 - proportionality is the
+   weaker argument at the pierce limit.
+
+### 2026-09-05 (later) - float travel was wrong; heights are now real millimetres
+
+**Everything above this entry that quotes a cut or pierce height in mm is in
+"indicated" units, not physical standoff.** `Float Switch Travel` in
+`cnc_plasma_cutter.prefs` was left at the QtPlasmaC default of 1.5 mm while the
+torch's sprung slide actually travels **~5.15 mm** before the switch trips.
+QtPlasmaC takes the material surface to be `Z_at_trip + Float Travel`, so an
+under-declared travel parks the torch low by the difference:
+
+    physical standoff = CUT_HEIGHT + declared_travel - actual_travel
+            1.65 mm   =    5.3     +      1.5        -    5.15
+
+That is how the anchor came to be "5.3 mm": it was the number that put a real
+1.5-1.8 mm of air under the nozzle. The 3.65 mm error is mechanical, not probe
+overshoot - at Probe Feed Rate 350 mm/min into 800 mm/s^2 the stopping distance
+is 0.02 mm, and `db_float.delay = 5` adds 0.03 mm.
+
+**Float Travel is now set to 5.15**, so cut height means millimetres again, and
+all 20 entries were reset to the measured optimum:
+
+| | was (indicated) | now (real mm) |
+|---|---|---|
+| CUT_HEIGHT    | 5.3 | **2.0** |
+| PIERCE_HEIGHT | 5.3 | **2.5** |
+
+Both halves of this change must move together. Setting Float Travel without
+rescaling the heights, or vice versa, puts the torch 3.65 mm out.
+
+Pierce is now 1.25x cut height rather than the ~2x convention. That was tuned at
+the machine on thin plate and is fine there; if 12-20 mm pierces splash the
+shield, raise PIERCE_HEIGHT on those entries specifically rather than the whole
+table, and try puddle jump (see the aluminium section - it is a *percentage of
+pierce height*, so with 2.5/2.0 anything at or below 80% does nothing).
+
+**The ohmic trap this was hiding is now closed.** Ohmic probing detects the
+surface exactly and gets no float-travel correction, so under the old 1.5 mm
+declaration enabling ohmic would have commanded 5.3 + 1.5 = 6.8 mm of real
+standoff - far too high for the arc to transfer. With Float Travel correct,
+the float and ohmic paths now agree and `Ohmic Probe Offset = 0.0` is right.
+
+### The nozzle is 1.0 mm - this torch is a 45 A torch
+
+Measured on a **new** nozzle, 2026-09-05. Orifice diameter sets the current
+rating at roughly 55-60 A/mm^2, and 1.0 mm is exactly Hypertherm's 45 A orifice
+(65 A is 1.1 mm, 85 A is 1.2 mm, 105 A is 1.3 mm).
+
+This is hardware confirmation of the inference in the 2026-08-23 entry, which
+reached "the torch is behaving like the 45 A column" from the speed ratio alone.
+Consequences:
+
+1. **Cap the HBC65 front dial at ~45 A**, 50 A absolute. Past that the orifice
+   erodes into a bell mouth in minutes - wide kerf, wandering arc, double-arcing
+   onto the shield. This is tuning rule #1 with a number attached.
+2. **Entries 6-10 (MS 8/10/12/16/20 mm) need a bigger nozzle.** Their speeds are
+   scaled from the Hypertherm *65 A* column and their CUT_AMPS say 65. At 45 A
+   the real limits are ~6-8 mm quality and ~12 mm sever; 16 and 20 mm are out of
+   reach. Fit a 1.1 mm nozzle for thick work or treat those entries as unusable.
+   Same for AL 8/10 mm (18-19).
+3. **The thin-end KERF_WIDTH values are below the physical floor.** Kerf bottoms
+   out around 1.3-1.6x the orifice, so ~1.3 mm minimum here; entries 1 and 2
+   claim 1.1 and 1.3. Low impact today - `dxf2ngc.py` does no kerf compensation
+   at all, so KERF_WIDTH only feeds QtPlasmaC's conversational shapes and stats.
+
+### The CUT_VOLTS anchor is not corroborated after all
+
+The 126.1 V measurement (`thcad_arc_26-08-13_17-23-13.log`) was taken on
+**2026-08-13**. The real float switch went live in commit `cee3c33` on
+**2026-08-14** - one day later. That reading was therefore taken with the
+bench-test float simulation active, which probed to a virtual material top, so
+the physical standoff during that cut is unknown.
+
+The "1.5% agreement with the Hypertherm 65 A chart" claimed in the CUT_VOLTS
+section above is coincidence, not corroboration - it cannot confirm the THCAD
+calibration, because the height it was measured at is not known. There is
+currently **no trustworthy voltage anchor in this file.** Still inert while
+`Use auto volts = True`; re-measure every entry with `./thcad_arc_log.sh` at the
+new 2.0 mm cut height before ever turning auto-volts off.
