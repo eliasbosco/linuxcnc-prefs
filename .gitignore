@@ -13,3 +13,4 @@ cnc_plasma_cutter/resume/
 cnc_plasma_cutter/cut_recorder.log
 cnc_plasma_cutter/resume_cut.log
 cnc_plasma_cutter/pick_shape.log
+cnc_plasma_cutter/backups/*.ini.prezero.*
