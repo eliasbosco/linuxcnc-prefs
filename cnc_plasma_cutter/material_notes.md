@@ -405,3 +405,321 @@ calibration, because the height it was measured at is not known. There is
 currently **no trustworthy voltage anchor in this file.** Still inert while
 `Use auto volts = True`; re-measure every entry with `./thcad_arc_log.sh` at the
 new 2.0 mm cut height before ever turning auto-volts off.
+
+### 2026-09-07 - anchor re-tuned to 1200 mm/min at 1.5/3.5 mm, whole table rescaled
+
+MS 6 mm was re-tuned at the machine to **kerf 1.5, cut height 1.5, pierce
+height 3.5, pierce delay 0.5 s, 1200 mm/min, 120 V**. That entry is the anchor
+and was left byte-identical; every other entry is derived from it below.
+
+`Float Switch Travel` also moved **5.15 -> 5.70** in the prefs at the same time,
+so the physical standoff barely changed even though CUT_HEIGHT dropped:
+
+    real standoff (old) = 2.0 + 5.15 - 5.70 = 1.45 mm
+    real standoff (new) = 1.5 + 5.70 - 5.70 = 1.50 mm
+
+In other words the 2.0 mm of the previous entry was never 2.0 mm of air - it
+was 1.45 - and the new 1.5 mm mostly just writes down what was already being
+cut. Declared travel now equals measured travel, so cut height is standoff.
+
+**PIERCE_HEIGHT is the real height change: 1.95 mm real -> 3.5 mm.** Pierce is
+back to 2.33x cut height, which finally answers the warning left open on
+2026-09-05 that pierce had collapsed onto the cutting standoff with no blowback
+clearance. Flat 3.5 on all 20 entries.
+
+#### CUT_SPEED - factor chain from the chart is now a round 0.60
+
+The anchor moved 950 -> 1200, an extra **x1.2632**, and the chain collapses to
+something suspiciously tidy:
+
+    0.625 x 0.8 x 0.95 x 1.2632 = 0.60      (chart 6 mm 2000 x 0.60 = 1200)
+
+| # | material | chart | was | now |
+|---|----------|-------|-----|-----|
+| 6 | MS 8 mm  | 1550  | 737 | 930 |
+| 7 | MS 10 mm | 1040  | 494 | 624 |
+| 8 | MS 12 mm |  840  | 399 | 504 |
+| 9 | MS 16 mm |  560  | 266 | 336 |
+| 10| MS 20 mm |  380  | 182 | 228 |
+| 17| AL 6 mm  |   -   | 950 |1200 | = MS 6 mm, per the aluminium rule
+| 18| AL 8 mm  |   -   | 737 | 930 | = MS 8 mm
+| 19| AL 10 mm |   -   | 494 | 624 | = MS 10 mm
+
+**The speed-limited entries went 1000 -> 1200, which is new.** Since 2026-09-04
+entries 0-4 and 11-16 have been pinned at 1000 mm/min because that is the
+X-screw ceiling, not a cutting speed. The anchor is now *above* that ceiling,
+so leaving them at 1000 would command thin sheet **slower** than 6 mm plate -
+backwards, and exactly the "more heat per millimetre into thin sheet at a fixed
+dial current" failure the binding-constraint section warns about. So every entry
+whose chart-derived speed exceeds 1200 is now set to 1200, the same
+over-command the anchor carries. MS 4 mm (chart 2600 x 0.6 = 1560) and AL 5 mm
+(interpolated 1380) fall in that group too.
+
+Entry 0 keeps 1000. It has no thickness, so there is nothing to scale, and 1000
+is the speed the machine can actually guarantee in any direction.
+
+#### 1200 mm/min is not reachable along X - read this before trusting the anchor
+
+`[JOINT_0] MAX_VELOCITY = 16.666667` mm/s = **1000 mm/min**, and the comment
+above it is emphatic about why (X screw whip, three reverted attempts). Y is not
+limited - `[JOINT_1]` is 100 mm/s. So LinuxCNC clamps an F1200 cut to 1000
+mm/min on any X-dominant segment and runs the full 1200 on Y-dominant ones. On a
+45-degree move the vector tops out near 1414 mm/min but X still caps its own
+component.
+
+Two consequences:
+
+1. **Whether the 1200 anchor is real depends on the direction of the test cut.**
+   If the 6 mm test piece was cut along X, the torch was actually moving at
+   1000 mm/min and "1200" is the number that was typed, not the number that
+   severed. If it was along Y, or a circle, 1200 is real for part of the path.
+   Re-cut the 6 mm test along X and along Y and compare the dross - if they
+   differ, the anchor is a Y-only figure and the honest anchor is 1000.
+2. **Direction-dependent cut quality is now baked into the whole thin end.**
+   Every entry from 1200 down to MS 8 mm's 930 is at or above the X ceiling or
+   close under it, so the same part will cut hotter on its X edges than its Y
+   edges. Nothing in the config can fix this; only the mechanical fixes listed
+   in the `[JOINT_0]` comment can.
+
+Note also that `Arc Fail Timeout` went 3.0 -> 10.0 in the prefs at the same
+time. That is a long time to sit with the torch firing and no arc detected -
+it papers over transfer failures rather than reporting them. Worth putting back
+to 3.0 once pierce height 3.5 has proved itself.
+
+#### PIERCE_DELAY - 0.0833 s per mm
+
+The anchor took 0.6 -> 0.5 s at 6 mm, so the previous clean 0.1 s/mm ramp
+becomes **0.5/6 = 0.0833 s/mm**, applied by thickness:
+
+| mm | 0.5 | 1 | 2 | 3 | 4 | 6 | 8 | 10 | 12 | 16 | 20 |
+|----|-----|---|---|---|---|---|---|----|----|----|----|
+| s  |0.05 |0.08|0.17|0.25|0.33|**0.5**|0.67|0.83|1.0|1.33|1.67|
+
+AL uses the same ramp as MS now, since both are pure functions of thickness.
+
+**MS 16 mm went 1.6 -> 1.33 s.** This is the second time proportionality has
+eroded that entry's padding (it was 2.0 originally). It is named "pierce limit"
+for a reason. If motion starts before breakthrough, put it back to 2.0 - and
+note that with a 1.0 mm nozzle this entry is unusable anyway (see the nozzle
+finding), so the delay is academic until a 1.1 mm nozzle is fitted.
+
+#### KERF_WIDTH - scaled x0.882 and floored at the orifice
+
+Kerf moved 1.7 -> 1.5 at the anchor, a factor of 0.882. As on 2026-09-05,
+literal proportionality against thickness is not used - the sub-linear ramp is
+scaled as a whole and then clipped at the physical floor from the nozzle
+finding, ~1.3x a 1.0 mm orifice = **1.3 mm minimum**:
+
+| mm  | 1 | 2 | 3 | 4 | 6 | 8 | 10 | 12 | 16 | 20 |
+|-----|---|---|---|---|---|---|----|----|----|----|
+| was |1.1|1.3|1.5|1.6|1.7|1.8|1.9 |2.0 |2.3 |2.5 |
+| x.882|0.97|1.15|1.32|1.41|1.50|1.59|1.68|1.76|2.03|2.21|
+| now |**1.3**|**1.3**|1.3|1.4|**1.5**|1.6|1.7 |1.8 |2.0 |2.2 |
+
+The flat spot at 1-3 mm is deliberate and is a fix, not an artefact: the
+2026-09-05 nozzle finding flagged entries 1 and 2 (1.1 and 1.3) as below the
+width a 1.0 mm orifice can physically cut. They are now at the floor.
+
+AL still follows **MS + 0.1** by thickness: 1.4 up to 3 mm, then 1.5, 1.6, 1.6,
+1.7, 1.8. Entry 0 keeps its 1.0, which is also below the floor - it is left
+alone by the same rule that leaves its speed alone, and it is a default, not a
+material. `dxf2ngc.py` still does no kerf compensation, so none of this column
+reaches a cut path today.
+
+#### CUT_VOLTS - the column rebased 126 -> 120, and it very nearly checks out
+
+Every non-anchor MS value was "126 V anchor + the chart's thickness delta". The
+anchor is now 120, so the whole column drops 6 V and keeps its deltas:
+
+| mm | 1-4 | 6 | 8 | 10 | 12 | 16 | 20 |
+|----|-----|---|---|----|----|----|----|
+| delta from anchor | 0 | 0 | +2 | +4 | +6 | +12 | +18 |
+| now | 120 |**120**| 122 | 124 | 126 | 132 | 138 |
+
+Worth noticing: cut height dropped 0.5 mm real (1.95 -> 1.50 by the standoff
+arithmetic above is pierce; cut went 1.45 -> 1.50, but the *declared* height
+went 2.0 -> 1.5), and at `Height Per Volt = 0.1` a 0.5 mm reduction is -5 V.
+126 - 5 = 121, against a hand-tuned 120. That is the first time a voltage
+number in this file has agreed with anything by construction rather than by
+coincidence. It is **not** a calibration - see the retraction above, there is
+still no measured voltage anchor - but the direction and magnitude are right.
+
+AL keeps **MS + 10 V**: 130 through 6 mm, then 132 and 134.
+
+Still inert while `Use auto volts = True`. Unchanged advice: re-measure with
+`./thcad_arc_log.sh` at the new 1.5 mm cut height before disabling auto-volts.
+
+#### CUT_AMPS - untouched, again
+
+Display-only on this machine (the real current is the HBC65 front dial), the
+anchor did not move it, and the nozzle finding says the 65 A entries are
+aspirational regardless. Nothing to scale.
+
+#### Puddle jump has room to work now
+
+`puddle_jump_height` is a **percentage of pierce height**. At 3.5 pierce and
+1.5 cut, anything at or below **43%** lands under the cut height and does
+nothing - against 80% under the old 2.5/2.0 pair. So the useful band is much
+wider than it was: start near 70% (2.45 mm) with a short delay if pierces
+splash the shield.
+
+#### Test order for this table
+
+1. **Re-cut 6 mm along X and along Y.** This is the one that decides whether
+   1200 is a real anchor or a Y-only number. Everything else here is scaled
+   from it.
+2. 8 mm at 930, by dross.
+3. 4 mm at 1200 - and note the 2026-08-23 log wanted 4 mm tested near 2280,
+   which the X ceiling still forbids.
+4. Only then kerf, and only then voltage.
+
+### 2026-09-07 (later) - MS 3 mm measured at 2000 mm/min; there are now TWO anchors
+
+MS 3 mm was tuned at the machine to **kerf 1.2, pierce height 3.0, pierce delay
+0.3 s, cut height 1.5, 2000 mm/min, 38 A**. Entries 1, 2, 4 mm were re-derived
+from it and a new **MS 5 mm (MATERIAL_NUMBER_20)** was added. MS 6 mm and
+everything above it was left alone.
+
+`Arc Fail Timeout` is back to 3.0 - the 10 s of the previous entry is gone.
+
+#### The two anchors disagree, and the chart loses
+
+This file has measured two thicknesses on this machine now, and they do not
+agree on any single scale factor against the Hypertherm 45 A column:
+
+| anchor | measured | chart | ratio |
+|--------|----------|-------|-------|
+| 3 mm   | 2000     | 3630  | 0.551 |
+| 6 mm   | 1200     | 1240  | 0.968 |
+
+Scaling the chart by the new 3 mm factor - the obvious reading of "rescale
+proportionally" - would put 6 mm at **683 mm/min**, against 1200 measured. That
+is not a small discrepancy, it is a factor of 1.76, so the chart's *shape*
+across 3-6 mm is simply wrong for this torch. The 2026-08-23 note that "the
+torch is behaving like the 45 A column" held at 6 mm and does **not** hold at
+3 mm; the real machine falls off much faster with thickness than Hypertherm
+does.
+
+So speed is no longer chart-derived at all in the 1-6 mm band. It is a power
+law fitted through the two measured points:
+
+    speed(t) = 2000 x (t/3)^-0.737          (-0.737 = log2(1200/2000))
+
+which reproduces both anchors exactly by construction and needs no factor
+chain. The 0.60 chart factor from the earlier entry today now applies only to
+8 mm and up, which has never been measured.
+
+| mm | power law | chart x 0.551 would give | set to |
+|----|-----------|--------------------------|--------|
+| 1  | 4494      | 4898                     | **2000** (capped) |
+| 2  | 2697      | 3636                     | **2000** (capped) |
+| 3  | 2000      | 2000                     | **2000** (anchor) |
+| 4  | 1618      | 1245                     | **1618** |
+| 5  | 1373      | -                        | **1373** |
+| 6  | 1200      | 683                      | 1200 (anchor, untouched) |
+
+For comparison, a constant-power model (speed x thickness = const) predicts
+1000 at 6 mm from the 3 mm anchor - closer than the chart, but still 17% under
+the measurement. The two-point fit is the only derivation that respects both
+numbers actually cut on this machine.
+
+#### The speed cap is 2000, and the X ceiling problem is now much worse
+
+Derived 1 mm is 4494 mm/min. It is set to **2000** instead - the anchor's own
+figure, because nothing on this machine has been proven to cut above 2000 and
+guessing 4494 for the thinnest, least forgiving material is the wrong direction
+to guess in.
+
+`[JOINT_0] MAX_VELOCITY` is **still 1000 mm/min** (unchanged; the screw-whip
+comment in the ini stands). So the mismatch flagged in the earlier entry today
+has doubled:
+
+| entry | commanded | actual on X | actual on Y | ratio |
+|-------|-----------|-------------|-------------|-------|
+| MS 1/2/3 mm | 2000 | 1000 | 2000 | **2:1** |
+| MS 4 mm     | 1618 | 1000 | 1618 | 1.6:1 |
+| MS 5 mm     | 1373 | 1000 | 1373 | 1.4:1 |
+| MS 6 mm     | 1200 | 1000 | 1200 | 1.2:1 |
+
+`[JOINT_1]` is 100 mm/s = 6000 mm/min, so the Y figures are all genuinely
+reachable - this is a real 2:1 speed difference between the X and Y edges of
+the same part at 1-3 mm, not a theoretical one. **A square cut in 3 mm will
+have two good edges and two edges cut at half the intended speed.** Expect
+noticeably heavier dross on the X-direction edges.
+
+**This means the 2000 anchor is almost certainly a Y-direction measurement.**
+If the 3 mm test cut ran along X, the torch was moving at 1000 mm/min and 2000
+is just the number in the box. Either way the derivation above is anchored on
+whatever really happened, so: re-cut 3 mm as an L or a square and compare the
+X edge against the Y edge. If they match, X is not actually clamping and the
+ini needs looking at. If they differ, the honest table for X-dominant work
+tops out at 1000 and the only fix is mechanical (anti-whip follower, bigger
+screw, or belt/rack on X - see the `[JOINT_0]` comment).
+
+#### The other columns
+
+Below the 3 mm anchor the anchor's own flat/ramp rules apply. For 4 and 5 mm,
+which are *bracketed* by two measurements, values are interpolated between the
+two anchors rather than extrapolated from one - that is what keeps 4 mm from
+contradicting 6 mm the way the chart did.
+
+| | 1 mm | 2 mm | 3 mm | 4 mm | 5 mm | 6 mm |
+|---|---|---|---|---|---|---|
+| KERF_WIDTH    | 1.1 | 1.1 | **1.2** | 1.3 | 1.4 | **1.5** |
+| PIERCE_HEIGHT | 3.0 | 3.0 | **3.0** | 3.2 | 3.3 | **3.5** |
+| PIERCE_DELAY  | 0.1 | 0.2 | **0.3** | 0.37| 0.43| **0.5** |
+| CUT_HEIGHT    | 1.5 | 1.5 | **1.5** | 1.5 | 1.5 | **1.5** |
+| CUT_AMPS      | 28  | 33  | **38**  | 44  | 49  | **55**  |
+
+(bold = measured at the machine)
+
+**KERF_WIDTH** - the measured 1.2 at 3 mm **retracts the 1.3 mm floor** asserted
+in the 2026-09-05 nozzle finding. That floor was inferred from "kerf bottoms out
+at ~1.3x the orifice"; a real 1.2 mm kerf on a 1.0 mm nozzle says the multiplier
+is nearer 1.2x here. 1 and 2 mm are set to 1.1 (1.1x orifice), which is about as
+low as kerf can physically go, rather than the sub-1.0 values literal scaling
+would give. Still unmeasured, still uncompensated - `dxf2ngc.py` does no kerf
+offset.
+
+**PIERCE_HEIGHT** - the anchor took it 3.5 -> 3.0, so the flat 3.5 set this
+morning is no longer flat. It now ramps 3.0 (1-3 mm) to 3.5 (6 mm+). That is
+defensible - thin plate needs less blowback clearance - but note that **only
+entries 1-4 and the new 5 mm moved.** 8-20 mm and all of aluminium are still at
+3.5 on this morning's flat rule, which was itself untested. If you want the
+whole table on a 3 mm-anchored ramp, say so and it can go through in one pass.
+
+**PIERCE_DELAY** - 0.1 s/mm at the thin end, which is exactly the ramp this file
+carried before this morning, so the 3 mm anchor has effectively restored it.
+4 and 5 mm interpolate to the anchor's slower 0.0833 s/mm at 6 mm.
+
+**CUT_AMPS is display-only** (the real current is the HBC65 front dial), so
+these are a record of the dial, not a command. Two things to note anyway: the
+anchor moved 40 -> 38 at 3 mm, and **the interpolated 5 mm value of 49 A
+exceeds the ~45 A cap** the nozzle finding set for a 1.0 mm orifice. Run 5 mm
+at 45 A on the dial regardless of what the entry says, or fit a 1.1 mm nozzle.
+
+**CUT_VOLTS** - 120 at both anchors, so flat 120 across 1-6 mm, unchanged. Still
+inert while `Use auto volts = True`, still no measured voltage anchor.
+
+Also normalised `PIERCE_HEIGHT = 3.0000000000000107` on the anchor to `3.0`.
+That is a QtPlasmaC spinbox float artefact, not a tuned value - same class of
+noise as the `Arc Fail Timeout = 3.0000000000000204` in the prefs.
+
+#### MS 5 mm is MATERIAL_NUMBER_20, so it sorts last in the GUI
+
+There was no free slot between MS 4 mm (4) and MS 6 mm (5) - the MS set owns
+0-10 and aluminium owns 11-19 - so the new entry went on the end at 20.
+Consequence: **it appears after AL 10mm in the material dropdown, not between
+4 mm and 6 mm.** Renumbering to put it in thickness order would shift every
+aluminium entry and break any `M190 P<n>` already sitting in saved G-code, so it
+was not done. 21 sections, numbers 0-20, parses clean.
+
+#### Test order
+
+1. **3 mm as an L or a square** - X edge against Y edge. This decides whether
+   2000 is real or a Y-only figure, and every speed from 1 to 5 mm hangs off it.
+2. 5 mm at 1373, dial at 45 A - it is the only entirely new entry here.
+3. 4 mm at 1618. The 2026-08-23 log wanted 4 mm near 2280; the two-point fit
+   says 1618 and the fit is now better evidence than the chart was.
+4. 1 mm at 2000 last, and watch for the arc trailing - 2000 is a cap, not a
+   derivation, and the power law wanted more than twice that.

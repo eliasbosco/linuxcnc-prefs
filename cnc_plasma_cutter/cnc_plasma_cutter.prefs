@@ -2,12 +2,12 @@
 Arc Voltage Offset = 3128.4
 Arc Voltage Scale = 0.0124
 Setup Feed Rate = 1200.0
-Arc Fail Timeout = 3.0
+Arc Fail Timeout = 3.0000000000000204
 Arc OK High = 250.0
 Arc OK Low = 60.0
 Arc Maximum Starts = 3
 Velocity Anti Dive Threshold = 90.0
-Float Switch Travel = 5.149999999999934
+Float Switch Travel = 5.7
 Height Per Volt = 0.1
 Void Sense Slope = 500
 Ohmic Maximum Attempts = 0
@@ -122,14 +122,14 @@ X axis = 0.0
 Y axis = 0.0
 
 [STATISTICS]
-Cut time = 861.33
-Paused time = 7751.73
-Probe time = 1886.96
-Program run time = 13094.98
-Torch on time = 1300.8
-Rapid time = 837.66
-Cut length = 19814.0
-Pierce count = 201
+Cut time = 2013.59
+Paused time = 17807.07
+Probe time = 3434.65
+Program run time = 27761.5
+Torch on time = 2801.74
+Rapid time = 1076.5
+Cut length = 37790.23
+Pierce count = 430
 
 [LASER_OFFSET]
 X axis = 0.0

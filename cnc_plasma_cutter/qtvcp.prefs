@@ -1,6 +1,6 @@
 [DIALOG_GEOMETRY]
 AboutDialog-geometry = half
-LncMessage-geometry = default
+LncMessage-geometry = 630 383 500 283
 axisToolButtonDialog_ENTRY = 440 499 300 150
 
 [DIALOG_OPTIONS]
